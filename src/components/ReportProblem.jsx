@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { ChevronLeft, Send, Loader2 } from 'lucide-react';
+import ReCaptcha from './ReCaptcha';
 
 const ReportProblem = () => {
   const navigate = useNavigate();
@@ -10,11 +11,31 @@ const ReportProblem = () => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaError, setCaptchaError] = useState(false);
+  const captchaRef = useRef(null);
+
+  const handleCaptchaChange = (token) => {
+    setCaptchaToken(token);
+    setCaptchaError(false);
+  };
+
+  const handleCaptchaExpired = () => {
+    setCaptchaToken('');
+    setCaptchaError(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !subject.trim() || !description.trim()) return;
+
+    if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !captchaToken) {
+      setCaptchaError(true);
+      return;
+    }
+
     setLoading(true);
+    captchaError(false);
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,12 +44,14 @@ const ReportProblem = () => {
       email: email.trim(),
       subject: subject.trim(),
       description: description.trim(),
+      captcha_token: captchaToken || null,
     });
 
     if (!error) {
       setSent(true);
     }
     setLoading(false);
+    captchaRef.current?.reset();
   };
 
   if (sent) {
@@ -99,6 +122,13 @@ const ReportProblem = () => {
             style={{ fontSize: '16px' }}
           />
         </div>
+
+        <div className="flex justify-center pt-1">
+          <ReCaptcha ref={captchaRef} onChange={handleCaptchaChange} onExpired={handleCaptchaExpired} />
+        </div>
+        {captchaError && (
+          <p className="text-xs text-[#f91880] text-center -mt-2">Please complete the CAPTCHA verification.</p>
+        )}
 
         <button
           type="submit"
