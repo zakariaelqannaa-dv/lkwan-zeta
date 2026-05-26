@@ -1,5 +1,5 @@
 <div align="center">
-  +  <img src="public/logo.png" alt="Lkwan Logo" width="20%" />
+    <img src="public/logo.png" alt="Lkwan Logo" width="20%" />
 </div>
 
 <br/>
