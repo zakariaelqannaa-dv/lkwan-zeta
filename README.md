@@ -6,6 +6,10 @@ A modern, real-time social media frontend built with React.
 
 Lkwan is a full-featured social media UI where users can share posts, follow people, send direct messages, and stay connected with real-time updates — all without page refreshes. This repository contains only the frontend source code.
 
+## Screenshots
+
+![Lkwan screenshot](src/assets/screenshot.png)
+
 ## Key Features
 
 - **Post Feed** — Share text and images. "For You" and "Following" feeds with infinite scroll.
