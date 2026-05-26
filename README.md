@@ -1,14 +1,36 @@
+<div align="center">
+  <img src="src/assets/screenshot.png" alt="Lkwan Brand Identity & Interface" width="100%" />
+</div>
+
+<br/>
+
+<div align="center">
+
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-✓-5A0FC8?logo=pwa&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+</div>
+
 # Lkwan — Frontend UI
 
 A modern, real-time social media frontend built with React.
+
+---
 
 ## What is Lkwan?
 
 Lkwan is a full-featured social media UI where users can share posts, follow people, send direct messages, and stay connected with real-time updates — all without page refreshes. This repository contains only the frontend source code.
 
-## Screenshots
+---
 
-![Lkwan screenshot](src/assets/screenshot.png)
+## Brand Identity & Interface Preview
+
+![Lkwan Brand Identity & Interface](src/assets/screenshot.png)
+
+---
 
 ## Key Features
 
@@ -23,6 +45,8 @@ Lkwan is a full-featured social media UI where users can share posts, follow peo
 - **Dark Theme** — Dark UI optimized for OLED screens.
 - **PWA** — Installable on phone/desktop with offline support.
 
+---
+
 ## Tech Stack
 
 - **Framework:** React 18
@@ -33,6 +57,8 @@ Lkwan is a full-featured social media UI where users can share posts, follow peo
 - **Markdown:** react-markdown
 - **Rich Text:** @dnd-kit (drag-and-drop), Emoji Mart (emoji picker)
 - **PWA:** vite-plugin-pwa
+
+---
 
 ## Getting Started
 
@@ -68,3 +94,9 @@ VITE_VAPID_PUBLIC_KEY=your-vapid-public-key
 npm run build
 npm run preview
 ```
+
+---
+
+<div align="center">
+  Built with ❤️ by <a href="https://github.com/zakariaelqannaa-dv">@zakariaelqannaa-dv</a>
+</div>
