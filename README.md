@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="src/assets/screenshot.png" alt="Lkwan Brand Identity & Interface" width="100%" />
+  +  <img src="public/logo.png" alt="Lkwan Logo" width="40%" />
 </div>
 
 <br/>
