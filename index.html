@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Lkwan — Anti-Brain Rot Social Media. Share deep thoughts, connect with thinkers." />
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Lkwan" />
+    <meta name="application-name" content="Lkwan" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Lkwan</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preload" as="image" href="/logo.png" />
+    <link rel="dns-prefetch" href="https://cdfeunmiubdxifxzebrw.supabase.co" />
+    <link rel="preconnect" href="https://cdfeunmiubdxifxzebrw.supabase.co" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>(function(){function m(u){return u&&(['sentry.io','ingest.sentry.io']).some(function(b){return u.indexOf(b)>-1})}var f=window.fetch;window.fetch=function(u){var t=typeof u=='string'?u:u&&u.url;if(m(t))return Promise.resolve(new Response(null,{status:200}));return f.apply(this,arguments)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){this._u=typeof u=='string'?u:u&&u.toString();return o.call(this,m,u)};var s=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){if(m(this._u))return;return s.apply(this,arguments)};var b=navigator.sendBeacon;navigator.sendBeacon=function(u){if(m(u))return true;return b.call(navigator,u)}})()</script>
+    <style>
+      #splash {
+        position: fixed; inset: 0; z-index: 9999;
+        background: #000;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #splash-img {
+        width: 80px; height: 80px;
+        opacity: 0.7;
+        animation: splash-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes splash-pulse {
+        0%, 100% { opacity: 0.7; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.05); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="splash"><img id="splash-img" src="/logo.png" alt="" /></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

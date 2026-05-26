@@ -1,0 +1,48 @@
+# Secrets & credentials
+.env
+.env.*
+.env.local
+
+# Database schema
+schema.sql
+schema.json
+
+# Supabase config
+supabase/
+
+# API client (contains keys)
+src/supabaseClient.js
+
+# Deployment config
+vercel.json
+.vercel
+
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Vite cache
+vite.config.js.timestamp-*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Old unused root-level assets (duplicates exist in src/assets/)
+/logo.jpg.jpeg
+/verification.png
+
+# Old Next.js styles (unused, all Tailwind now)
+styles/

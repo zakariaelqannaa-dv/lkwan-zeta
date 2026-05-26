@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design Tokens ──────────────────────────────────────── */
+@layer base {
+  :root {
+    --nav-h: 56px;
+    --bg: #000000;
+    --surface: #16181c;
+    --border: #2f3336;
+    --text: #e7e9ea;
+    --muted: #71767b;
+    --accent: #1d9bf0;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    scroll-behavior: smooth;
+    scroll-padding-top: 53px;
+  }
+  body {
+    overscroll-behavior-y: none;
+    background-color: var(--bg);
+    color: var(--text);
+    scrollbar-gutter: stable;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #2f3336 transparent;
+  }
+  *::-webkit-scrollbar { width: 4px; height: 4px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #2f3336; border-radius: 9999px; }
+}
+
+/* ─── PWA Standalone Mode ────────────────────────────────── */
+html.pwa-standalone body {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+html.pwa-standalone #root > div {
+  min-height: 100dvh;
+}
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+/* ─── Component Classes ───────────────────────────────────── */
+@layer components {
+
+  /* Post content typography */
+  .prose-kwan {
+    @apply text-[#e7e9ea];
+  }
+  .prose-kwan p { @apply mb-2 last:mb-0; }
+  .prose-kwan a { @apply text-[#1d9bf0] hover:underline; }
+  .prose-kwan strong { @apply font-bold; }
+  .prose-kwan em { @apply italic; }
+  .prose-kwan code {
+    @apply bg-[#16181c] px-1.5 py-0.5 rounded text-sm font-mono text-[#e7e9ea];
+  }
+  .prose-kwan pre {
+    @apply bg-[#16181c] p-4 rounded-xl overflow-x-auto text-sm;
+  }
+  .prose-kwan blockquote {
+    @apply border-l-4 border-[#2f3336] pl-4 italic text-[#71767b];
+  }
+
+  /* Custom scrollbar (thin, styled) */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #2f3336 transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #2f3336;
+    border-radius: 9999px;
+  }
+
+  /* Hide scrollbar completely */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
+
+/* ─── Utility Classes ─────────────────────────────────────── */
+@layer utilities {
+
+  /* Safe full-height (handles iOS Safari URL bar) */
+  .min-h-screen-safe {
+    min-height: 100dvh;
+  }
+  .h-screen-safe {
+    height: 100dvh;
+  }
+
+  /* Mobile nav bottom padding */
+  .pb-mobile-nav {
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+  }
+}
+
+/* ─── Loading Animation ──────────────────────────────────── */
+@keyframes loading-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.05); }
+}
+.animate-loading-pulse {
+  animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-slide-in  { animation: slide-in  0.2s ease-out both; }
+.animate-fade-in   { animation: fade-in   0.15s ease-out both; }
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-down { animation: slide-down 0.2s ease-out both; }
