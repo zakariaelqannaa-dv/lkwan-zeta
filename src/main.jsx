@@ -2,14 +2,18 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-const isNoise = (url) =>
-  url.includes('add-ardi') ||
-  url.includes('chrome-extension://') ||
-  url.includes('moz-extension://') ||
-  url.includes('sentry') ||
-  url.includes('ingest.sentry') ||
-  url.includes('spotifycdn') ||
-  url.includes('playready')
+const NOISE_PATTERNS = [
+  'add-ardi', 'add_biar_support',
+  'chrome-extension://', 'moz-extension://',
+  'sentry', 'ingest.sentry',
+  'o22381.ingest.us.sentry.io',
+  'spotifycdn', 'playready',
+  'ERR_BLOCKED', 'ERR_FAILED',
+  'com.microsoft.playready',
+  'webgpu', 'navigator.gpu'
+]
+
+const isNoise = (url) => NOISE_PATTERNS.some(p => url.includes(p))
 
 window.addEventListener('error', (e) => {
   const src = String(e.target?.src || e.filename || e.message || '')
@@ -40,7 +44,7 @@ navigator.sendBeacon = (url, data) => {
 const _XHR = window.XMLHttpRequest
 class PatchedXHR extends _XHR {
   open(method, url, ...args) {
-    this.__noise = url && isNoise(url)
+    this.__noise = url && isNoise(String(url))
     super.open(method, url, ...args)
   }
   send(body) {
@@ -53,10 +57,10 @@ window.XMLHttpRequest = PatchedXHR
 const _consoleError = console.error
 const _consoleWarn = console.warn
 const _consoleLog = console.log
-const isNoiseString = (s) => typeof s === 'string' && (isNoise(s) || s.includes('playready') || s.includes('ERR_BLOCKED'))
+const isNoiseString = (s) => typeof s === 'string' && (NOISE_PATTERNS.some(p => s.includes(p)))
 const patchConsole = (orig) => function(...args) {
   for (const a of args) {
-    if (isNoiseString(a) || (a instanceof Error && isNoiseString(a.message))) return
+    if (isNoiseString(a) || (a instanceof Error && isNoiseString(a.message)) || (a && isNoiseString(String(a)))) return
   }
   return orig.apply(this, args)
 }

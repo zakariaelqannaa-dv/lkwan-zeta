@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Image as ImageIcon, Play, Smile, Camera } from 'lucide-react';
+import { Image as ImageIcon, Play, Smile, Camera, Music } from 'lucide-react';
 import { compressImage } from '../utils/imageCompression';
+import { compressVideo } from '../utils/videoCompression';
 import EmojiPicker from './EmojiPicker';
+import MentionInput from './MentionInput';
+import VideoPreview from './VideoPreview';
+import { uploadWithValidation } from '../lib/uploadWithValidation';
 
 const ComposeInline = ({ user }) => {
   const [content, setContent] = useState('');
@@ -11,15 +15,16 @@ const ComposeInline = ({ user }) => {
   const [attachments, setAttachments] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [videoAttachment, setVideoAttachment] = useState(null);
-  const [videoPreview, setVideoPreview] = useState(null);
+  const [audioAttachment, setAudioAttachment] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
   const [focused, setFocused] = useState(false);
   const [profileAvatar, setProfileAvatar] = useState(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const imageInputRef = useRef();
   const videoInputRef = useRef();
+  const audioInputRef = useRef();
   const cameraInputRef = useRef();
   const emojiBtnRef = useRef();
-  const textareaRef = useRef();
 
   useEffect(() => {
     if (!user?.id) return;
@@ -27,13 +32,6 @@ const ComposeInline = ({ user }) => {
       if (data?.avatar_url) setProfileAvatar(data.avatar_url);
     });
   }, [user?.id]);
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [content]);
 
   const handlePost = async (e) => {
     e.preventDefault();
@@ -51,7 +49,7 @@ const ComposeInline = ({ user }) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
         const filePath = `post_images/${user.id}/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
+        const { error: uploadError } = await uploadWithValidation(file, filePath);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
         imageUrls.push(urlData.publicUrl);
@@ -59,26 +57,63 @@ const ComposeInline = ({ user }) => {
 
       let videoUrl = null;
       if (videoAttachment) {
-        const fileExt = videoAttachment.name.split('.').pop();
+        let videoToUpload = videoAttachment;
+        try {
+          videoToUpload = await compressVideo(videoAttachment);
+        } catch {
+        }
+        const fileExt = videoToUpload.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
         const filePath = `post_videos/${user.id}/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('media').upload(filePath, videoAttachment);
+        setVideoUploadProgress(0);
+        const { error: uploadError } = await uploadWithValidation(videoToUpload, filePath, setVideoUploadProgress);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
         videoUrl = urlData.publicUrl;
       }
 
-      const { error: postError } = await supabase.from('posts').insert([
+      if (audioAttachment) {
+        const fileExt = audioAttachment.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const filePath = `post_videos/${user.id}/${fileName}`;
+        const { error: uploadError } = await uploadWithValidation(audioAttachment, filePath);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+        videoUrl = urlData.publicUrl;
+      }
+
+      const { data: postData, error: postError } = await supabase.from('posts').insert([
         { user_id: user.id, content: content.trim(), image_urls: imageUrls, video_url: videoUrl }
       ]).select().single();
 
       if (postError) throw postError;
 
+      const mentions = content.match(/@(\w+)/g);
+      if (mentions && postData) {
+        const uniqueMentions = [...new Set(mentions.map(m => m.slice(1)))];
+        for (const username of uniqueMentions) {
+          const { data: mentionedUser } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('username', username)
+            .maybeSingle();
+          if (mentionedUser && mentionedUser.id !== user.id) {
+            await supabase.from('notifications').insert({
+              user_id: mentionedUser.id,
+              actor_id: user.id,
+              type: 'mention',
+              post_id: postData.id
+            });
+          }
+        }
+      }
+
       setContent('');
       setAttachments([]);
       setPreviews([]);
       setVideoAttachment(null);
-      setVideoPreview(null);
+      setAudioAttachment(null);
+      setVideoUploadProgress(0);
     } catch (err) {
       console.error('Error:', err);
       setError(err.message || 'Failed to post');
@@ -110,14 +145,62 @@ const ComposeInline = ({ user }) => {
 
   const handleVideoSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 20 * 1024 * 1024) {
-        setError('Video must be under 20MB');
-        return;
-      }
-      setVideoAttachment(file);
-      setVideoPreview(URL.createObjectURL(file));
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const supportedExt = ['mp4', 'webm'];
+    const supportedMime = ['video/mp4', 'video/webm'];
+
+    if (!supportedExt.includes(ext)) {
+      setError(`Unsupported format (.${ext}). Use MP4 (H.264) or WebM.`);
+      e.target.value = '';
+      return;
     }
+
+    if (!supportedMime.includes(file.type) && !file.type.startsWith('video/')) {
+      setError('Unsupported video codec. Use H.264 MP4.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Video must be under 20MB');
+      e.target.value = '';
+      return;
+    }
+
+    setVideoAttachment(file);
+    e.target.value = '';
+  };
+
+  const handleAudioSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const supportedExt = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'opus'];
+
+    if (!supportedExt.includes(ext)) {
+      setError(`Unsupported audio format (.${ext}). Use MP3, WAV, or OGG.`);
+      e.target.value = '';
+      return;
+    }
+
+    if (!file.type.startsWith('audio/')) {
+      setError('Unsupported audio codec.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Audio must be under 20MB');
+      e.target.value = '';
+      return;
+    }
+
+    setAudioAttachment(file);
+    setVideoAttachment(null);
+    e.target.value = '';
   };
 
   const handleCameraCapture = (e) => {
@@ -137,7 +220,6 @@ const ComposeInline = ({ user }) => {
   const handleEmojiSelect = (emoji) => {
     setContent(prev => prev + emoji);
     setShowEmoji(false);
-    textareaRef.current?.focus();
   };
 
   const handleCloseEmoji = () => {
@@ -167,8 +249,7 @@ const ComposeInline = ({ user }) => {
           </div>
 
           <div className="flex-1 min-w-0">
-            <textarea
-              ref={textareaRef}
+            <MentionInput
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onFocus={() => setFocused(true)}
@@ -197,17 +278,20 @@ const ComposeInline = ({ user }) => {
               </div>
             )}
 
-            {videoPreview && (
-              <div className="mt-2 mb-2 relative rounded-xl overflow-hidden border border-[#2f3336]">
-                <video src={videoPreview} className="w-full h-auto max-h-72 bg-black" controls />
-                <button
-                  type="button"
-                  onClick={() => { setVideoAttachment(null); setVideoPreview(null); }}
-                  className="absolute top-1.5 right-1.5 bg-black/70 text-white p-0.5 rounded-full transition z-20"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" /></svg>
-                </button>
-              </div>
+            {videoAttachment && (
+              <VideoPreview
+                file={videoAttachment}
+                onRemove={() => { setVideoAttachment(null); setVideoUploadProgress(0); }}
+                uploadProgress={videoUploadProgress}
+                maxHeightClass="max-h-72"
+              />
+            )}
+
+            {audioAttachment && (
+              <VideoPreview
+                file={audioAttachment}
+                onRemove={() => { setAudioAttachment(null); }}
+              />
             )}
 
             <div className={`flex items-center justify-between ${content || focused ? 'mt-2 pt-2 border-t border-[#2f3336]' : ''}`}>
@@ -260,6 +344,22 @@ const ComposeInline = ({ user }) => {
                   className="hidden"
                   onChange={handleVideoSelect}
                   accept="video/mp4,video/webm"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => audioInputRef.current?.click()}
+                  className="text-[#1d9bf0] hover:bg-[#1d9bf0]/10 p-1.5 rounded-full transition-colors"
+                  title="Upload Audio"
+                >
+                  <Music size={16} strokeWidth={2} />
+                </button>
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleAudioSelect}
+                  accept="audio/mp3,audio/wav,audio/ogg,audio/aac,audio/flac,audio/m4a,audio/opus"
                 />
 
                 <div className="relative">

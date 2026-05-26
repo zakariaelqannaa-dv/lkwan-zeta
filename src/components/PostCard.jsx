@@ -6,6 +6,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { isEmbedUrl } from '../utils/embedPatterns';
 import EmbedPreview from './EmbedPreview';
+import VideoPreview from './VideoPreview';
+import MentionInput from './MentionInput';
 import VerificationBadge from './VerificationBadge';
 import { isVerified } from '../lib/verified';
 import { getIsAdmin } from '../lib/admin';
@@ -292,6 +294,21 @@ const PostCard = ({ post, currentUser }) => {
     return processed;
   };
 
+  const renderCommentText = (text) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        const username = part.slice(1);
+        return (
+          <Link key={i} to={`/u/${username}`} className="text-amber-500 font-black hover:bg-amber-500/10 px-0.5 rounded-md transition-colors">
+            {part}
+          </Link>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   const renderMedia = () => {
     const images = post.image_urls || (post.image_url ? [post.image_url] : []);
     if (!post.video_url && images.length === 0) return null;
@@ -299,11 +316,7 @@ const PostCard = ({ post, currentUser }) => {
     return (
       <div className="mb-3 rounded-lg overflow-hidden relative">
         {post.video_url && (
-          <div className="relative bg-black">
-            <video controls className="w-full h-auto max-h-[400px] sm:max-h-[600px]">
-              <source src={post.video_url} type="video/mp4" />
-            </video>
-          </div>
+          <VideoPreview file={post.video_url} maxHeightClass="max-h-[400px] sm:max-h-[600px]" />
         )}
 
         {!post.video_url && images.length > 0 && (
@@ -505,8 +518,8 @@ const PostCard = ({ post, currentUser }) => {
             <div className="mt-4 pt-4 border-t border-[#2f3336] animate-slide-in">
               {currentUser && (
                 <form onSubmit={handleComment} className="flex gap-3 mb-4">
-                  <input
-                    type="text"
+                  <MentionInput
+                    type="input"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Post your reply"
@@ -546,7 +559,7 @@ const PostCard = ({ post, currentUser }) => {
                           </button>
                         )}
                       </div>
-                      <p className="text-[15px] text-[#e7e9ea] font-normal leading-relaxed">{comment.content}</p>
+                      <p className="text-[15px] text-[#e7e9ea] font-normal leading-relaxed">{renderCommentText(comment.content)}</p>
                     </div>
                   </div>
                 ))}

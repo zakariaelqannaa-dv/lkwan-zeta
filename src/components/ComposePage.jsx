@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { X, Image as ImageIcon, ChevronLeft, Play, Smile, Camera } from 'lucide-react';
+import { X, Image as ImageIcon, ChevronLeft, Play, Smile, Camera, Music } from 'lucide-react';
 import MentionInput from './MentionInput';
+import VideoPreview from './VideoPreview';
 import { compressImage } from '../utils/imageCompression';
+import { compressVideo } from '../utils/videoCompression';
 import { getIsAdmin } from '../lib/admin';
 import EmojiPicker from './EmojiPicker';
+import { uploadWithValidation } from '../lib/uploadWithValidation';
 
 const ComposePage = ({ user }) => {
   const navigate = useNavigate();
@@ -20,14 +23,16 @@ const ComposePage = ({ user }) => {
   const [attachments, setAttachments] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [videoAttachment, setVideoAttachment] = useState(null);
-  const [videoPreview, setVideoPreview] = useState(null);
+  const [audioAttachment, setAudioAttachment] = useState(null);
   const [categories, setCategories] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
   const imageInputRef = useRef();
   const videoInputRef = useRef();
+  const audioInputRef = useRef();
   const cameraInputRef = useRef();
   const textareaRef = useRef();
   const emojiBtnRef = useRef();
@@ -89,7 +94,6 @@ const ComposePage = ({ user }) => {
             setAttachments(data.image_urls);
           }
           if (data.video_url) {
-            setVideoPreview(data.video_url);
             setVideoAttachment(data.video_url);
           }
         } else {
@@ -122,7 +126,7 @@ const ComposePage = ({ user }) => {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
             const filePath = `post_images/${user.id}/${fileName}`;
-            const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
+            const { error: uploadError } = await uploadWithValidation(file, filePath);
             if (uploadError) throw uploadError;
             const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
             newUploads.push(urlData.publicUrl);
@@ -132,15 +136,31 @@ const ComposePage = ({ user }) => {
         imageUrls = [...existingImages, ...newUploads];
 
         if (videoAttachment instanceof File) {
-          const fileExt = videoAttachment.name.split('.').pop();
+          let videoToUpload = videoAttachment;
+          try {
+            videoToUpload = await compressVideo(videoAttachment);
+          } catch {
+          }
+          const fileExt = videoToUpload.name.split('.').pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
           const filePath = `post_videos/${user.id}/${fileName}`;
-          const { error: uploadError } = await supabase.storage.from('media').upload(filePath, videoAttachment);
+          setVideoUploadProgress(0);
+          const { error: uploadError } = await uploadWithValidation(videoToUpload, filePath, setVideoUploadProgress);
           if (uploadError) throw uploadError;
           const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
           videoUrl = urlData.publicUrl;
         } else if (typeof videoAttachment === 'string') {
           videoUrl = videoAttachment;
+        }
+
+        if (audioAttachment instanceof File) {
+          const fileExt = audioAttachment.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+          const filePath = `post_videos/${user.id}/${fileName}`;
+          const { error: uploadError } = await uploadWithValidation(audioAttachment, filePath);
+          if (uploadError) throw uploadError;
+          const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+          videoUrl = urlData.publicUrl;
         }
 
         const { error } = await supabase.from('posts').update({
@@ -156,7 +176,7 @@ const ComposePage = ({ user }) => {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
             const filePath = `post_images/${user.id}/${fileName}`;
-            const { error: uploadError } = await supabase.storage.from('media').upload(filePath, file);
+            const { error: uploadError } = await uploadWithValidation(file, filePath);
             if (uploadError) throw uploadError;
             const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
             imageUrls.push(urlData.publicUrl);
@@ -164,10 +184,26 @@ const ComposePage = ({ user }) => {
         }
 
         if (videoAttachment && videoAttachment instanceof File) {
-          const fileExt = videoAttachment.name.split('.').pop();
+          let videoToUpload = videoAttachment;
+          try {
+            videoToUpload = await compressVideo(videoAttachment);
+          } catch {
+          }
+          const fileExt = videoToUpload.name.split('.').pop();
           const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
           const filePath = `post_videos/${user.id}/${fileName}`;
-          const { error: uploadError } = await supabase.storage.from('media').upload(filePath, videoAttachment);
+          setVideoUploadProgress(0);
+          const { error: uploadError } = await uploadWithValidation(videoToUpload, filePath, setVideoUploadProgress);
+          if (uploadError) throw uploadError;
+          const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+          videoUrl = urlData.publicUrl;
+        }
+
+        if (audioAttachment && audioAttachment instanceof File) {
+          const fileExt = audioAttachment.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+          const filePath = `post_videos/${user.id}/${fileName}`;
+          const { error: uploadError } = await uploadWithValidation(audioAttachment, filePath);
           if (uploadError) throw uploadError;
           const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
           videoUrl = urlData.publicUrl;
@@ -181,6 +217,22 @@ const ComposePage = ({ user }) => {
 
         const mentions = content.match(/@(\w+)/g);
         if (mentions && postData) {
+          const uniqueMentions = [...new Set(mentions.map(m => m.slice(1)))];
+          for (const username of uniqueMentions) {
+            const { data: mentionedUser } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('username', username)
+              .maybeSingle();
+            if (mentionedUser && mentionedUser.id !== user.id) {
+              await supabase.from('notifications').insert({
+                user_id: mentionedUser.id,
+                actor_id: user.id,
+                type: 'mention',
+                post_id: postData.id
+              });
+            }
+          }
         }
 
         navigate('/');
@@ -216,14 +268,62 @@ const ComposePage = ({ user }) => {
 
   const handleVideoSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 20 * 1024 * 1024) {
-        setError('Video must be under 20MB');
-        return;
-      }
-      setVideoAttachment(file);
-      setVideoPreview(URL.createObjectURL(file));
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const supportedExt = ['mp4', 'webm'];
+    const supportedMime = ['video/mp4', 'video/webm'];
+
+    if (!supportedExt.includes(ext)) {
+      setError(`Unsupported format (.${ext}). Use MP4 (H.264) or WebM.`);
+      e.target.value = '';
+      return;
     }
+
+    if (!supportedMime.includes(file.type) && !file.type.startsWith('video/')) {
+      setError('Unsupported video codec. Use H.264 MP4.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Video must be under 20MB');
+      e.target.value = '';
+      return;
+    }
+
+    setVideoAttachment(file);
+    e.target.value = '';
+  };
+
+  const handleAudioSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const supportedExt = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'opus'];
+
+    if (!supportedExt.includes(ext)) {
+      setError(`Unsupported audio format (.${ext}). Use MP3, WAV, or OGG.`);
+      e.target.value = '';
+      return;
+    }
+
+    if (!file.type.startsWith('audio/')) {
+      setError('Unsupported audio codec.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Audio must be under 20MB');
+      e.target.value = '';
+      return;
+    }
+
+    setVideoAttachment(null);
+    setAudioAttachment(file);
+    e.target.value = '';
   };
 
   const removeImage = (index) => {
@@ -294,6 +394,7 @@ const ComposePage = ({ user }) => {
               type="textarea"
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onCategorySelect={(catName) => setCategory(catName)}
               placeholder="What's happening?"
               className="w-full bg-transparent text-[17px] font-normal outline-none resize-none min-h-[100px] placeholder-[#71767b] text-[#e7e9ea] leading-6 overflow-y-auto"
               style={{ fontSize: '16px' }}
@@ -318,17 +419,20 @@ const ComposePage = ({ user }) => {
               </div>
             )}
 
-            {videoPreview && (
-              <div className="mt-2 relative rounded-lg overflow-hidden border border-[#2f3336]">
-                <video src={videoPreview} className="w-full h-auto max-h-[70vh] bg-black" controls />
-                <button
-                  type="button"
-                  onClick={() => { setVideoAttachment(null); setVideoPreview(null); }}
-                  className="absolute top-3 right-3 bg-[#f91880] text-white p-2 rounded-full hover:bg-[#c4156a] transition"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+            {videoAttachment && (
+              <VideoPreview
+                file={videoAttachment}
+                onRemove={() => { setVideoAttachment(null); setVideoUploadProgress(0); }}
+                uploadProgress={videoUploadProgress}
+                maxHeightClass="max-h-[70vh]"
+              />
+            )}
+
+            {audioAttachment && (
+              <VideoPreview
+                file={audioAttachment}
+                onRemove={() => { setAudioAttachment(null); }}
+              />
             )}
           </div>
         </div>
@@ -349,6 +453,14 @@ const ComposePage = ({ user }) => {
             className="p-1.5 hover:bg-[#1d9bf0]/10 rounded-full transition text-[#71767b] hover:text-[#1d9bf0]"
           >
             <Play size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => audioInputRef.current?.click()}
+            className="p-1.5 hover:bg-[#1d9bf0]/10 rounded-full transition text-[#71767b] hover:text-[#1d9bf0]"
+            title="Upload Audio"
+          >
+            <Music size={16} />
           </button>
 
           <div className="relative">
@@ -385,6 +497,7 @@ const ComposePage = ({ user }) => {
 
       <input ref={imageInputRef} type="file" className="hidden" accept="image/*" multiple onChange={handleFileSelect} />
       <input ref={videoInputRef} type="file" className="hidden" accept="video/mp4,video/webm" onChange={handleVideoSelect} />
+      <input ref={audioInputRef} type="file" className="hidden" accept="audio/mp3,audio/wav,audio/ogg,audio/aac,audio/flac,audio/m4a,audio/opus" onChange={handleAudioSelect} />
       <input ref={cameraInputRef} type="file" className="hidden" accept="image/*" capture="environment" onChange={handleFileSelect} />
     </div>
   );
