@@ -23,9 +23,6 @@ export default {
       fontFamily: {
         sans: ['Geist', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
-      screens: {
-        xs: '375px',
-      },
       borderWidth: {
         3: '3px',
       },

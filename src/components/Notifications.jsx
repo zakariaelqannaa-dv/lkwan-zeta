@@ -153,17 +153,19 @@ const Notifications = () => {
   });
 
   if (loading) return (
-    <div className="flex flex-col gap-3 p-4 animate-pulse">
-      {[1,2,3,4,5].map(i => (
-        <div key={i} className="h-16 bg-[#16181c] rounded-xl w-full"></div>
-      ))}
+    <div className="flex flex-col gap-3 p-4 sm:p-6 animate-pulse">
+      <div className="max-w-2xl mx-auto w-full space-y-3">
+        {[1,2,3,4,5].map(i => (
+          <div key={i} className="h-16 bg-[#16181c] rounded-xl w-full"></div>
+        ))}
+      </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-black animate-slide-in">
       <header className="sticky top-0 z-40 bg-black border-b border-[#2f3336]">
-        <div className="flex items-center justify-between px-4 h-[53px]">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-[53px]">
           <h2 className="text-xl font-bold text-[#e7e9ea]">Notifications</h2>
           <button 
             type="button"
@@ -196,7 +198,7 @@ const Notifications = () => {
         </div>
       </header>
 
-      <div className="divide-y divide-[#2f3336]">
+      <div className="max-w-2xl mx-auto divide-y divide-[#2f3336]">
         {filteredNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center px-4">
             <BellOff size={32} className="text-[#2f3336] mb-4" />
@@ -207,7 +209,7 @@ const Notifications = () => {
             <div 
               key={n.id}
               onClick={() => markOneAsRead(n.id)}
-              className={`group flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ${
+              className={`group flex items-start gap-3 px-4 sm:px-6 py-3 transition-colors cursor-pointer ${
                 !n.is_read ? 'bg-[#16181c]' : 'hover:bg-[#080808]'
               }`}
             >

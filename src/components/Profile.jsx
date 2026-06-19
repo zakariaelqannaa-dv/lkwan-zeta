@@ -240,9 +240,9 @@ const Profile = ({ currentUser }) => {
 
   if (loading && !profile) return (
     <div className="bg-black min-h-screen animate-pulse">
-      <div className="h-[150px] bg-[#16181c] w-full" />
-      <div className="px-4">
-        <div className="w-[136px] h-[136px] rounded-full bg-[#16181c] -mt-[68px] border-2 border-black mb-3" />
+      <div className="h-[100px] sm:h-[150px] bg-[#16181c] w-full" />
+      <div className="px-4 sm:px-6">
+        <div className="w-[100px] h-[100px] sm:w-[136px] sm:h-[136px] rounded-full bg-[#16181c] -mt-[50px] sm:-mt-[68px] border-2 border-black mb-3" />
         <div className="space-y-2 mt-3">
           <div className="h-5 w-40 bg-[#16181c] rounded" />
           <div className="h-4 w-24 bg-[#16181c] rounded" />
@@ -316,15 +316,15 @@ const Profile = ({ currentUser }) => {
         </div>
       </header>
 
-      <div className="h-[150px] bg-[#2f3336] w-full relative">
+      <div className="h-[100px] sm:h-[150px] bg-[#2f3336] w-full relative">
         {profile?.cover_url && (
           <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
         )}
       </div>
 
-      <div className="px-4">
-        <div className="-mt-[68px] relative z-10 mb-2">
-          <div className="w-[136px] h-[136px] rounded-full bg-[#2f3336] overflow-hidden flex items-center justify-center text-4xl font-bold text-[#71767b] border-[3px] border-black">
+      <div className="px-4 sm:px-6">
+        <div className="-mt-[50px] sm:-mt-[68px] relative z-10 mb-2">
+          <div className="w-[100px] h-[100px] sm:w-[136px] sm:h-[136px] rounded-full bg-[#2f3336] overflow-hidden flex items-center justify-center text-2xl sm:text-4xl font-bold text-[#71767b] border-[3px] border-black">
             {profile?.avatar_url ? (
               <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
@@ -402,22 +402,22 @@ const Profile = ({ currentUser }) => {
             </button>
           )}
         </div>
+      </div>
 
-        <div className="flex border-b border-[#2f3336] sticky top-[53px] z-10 bg-black/90 backdrop-blur-sm -mx-4">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 h-[53px] text-sm font-medium relative transition-colors ${activeTab === tab.key ? 'text-[#e7e9ea]' : 'text-[#71767b] hover:bg-[#080808]'}`}
-            >
-              {tab.label}
-              {activeTab === tab.key && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-[3px] bg-[#1d9bf0] rounded-full" />
-              )}
-            </button>
-          ))}
-        </div>
+      <div className="flex border-b border-[#2f3336] sticky top-[53px] z-10 bg-black/90 backdrop-blur-sm">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 h-[53px] text-sm font-medium relative transition-colors ${activeTab === tab.key ? 'text-[#e7e9ea]' : 'text-[#71767b] hover:bg-[#080808]'}`}
+          >
+            {tab.label}
+            {activeTab === tab.key && (
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-[3px] bg-[#1d9bf0] rounded-full" />
+            )}
+          </button>
+        ))}
       </div>
 
       <div className="divide-y divide-[#2f3336]">

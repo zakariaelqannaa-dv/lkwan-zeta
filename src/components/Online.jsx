@@ -99,14 +99,16 @@ const Online = ({ currentUser }) => {
         </div>
       </header>
 
-      <div className="divide-y divide-[#2f3336]">
+      <div className="max-w-2xl mx-auto divide-y divide-[#2f3336]">
         {loading ? (
-          Array(6).fill(0).map((_, i) => (
-            <div key={i} className="px-4 py-3 animate-pulse flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#16181c]"></div>
-              <div className="flex-1 h-4 bg-[#16181c] rounded w-24"></div>
-            </div>
-          ))
+          <div className="px-4">
+            {Array(6).fill(0).map((_, i) => (
+              <div key={i} className="py-3 animate-pulse flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#16181c]"></div>
+                <div className="flex-1 h-4 bg-[#16181c] rounded w-24"></div>
+              </div>
+            ))}
+          </div>
         ) : filteredUsers.length > 0 ? (
           filteredUsers.map(u => (
             <Link 

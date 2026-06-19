@@ -67,11 +67,11 @@ const Bookmarks = ({ currentUser }) => {
         <div className="pb-24 sm:pb-0">
           {posts.map(post => <PostCard key={post.id} post={post} currentUser={currentUser} />)}
           {hasMore && (
-            <div className="flex items-center justify-center py-8 px-4">
+            <div className="flex items-center justify-center py-8 px-4 sm:px-6">
               <button
                 onClick={() => fetchBookmarks(page)}
                 disabled={loadingMore}
-                className="px-6 py-2.5 bg-[#e7e9ea] text-black rounded-full font-bold text-sm hover:bg-[#d6d9db] disabled:opacity-40 transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto px-6 py-2.5 bg-[#e7e9ea] text-black rounded-full font-bold text-sm hover:bg-[#d6d9db] disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
               >
                 {loadingMore ? (
                   <>
