@@ -5,6 +5,7 @@ import PostCard from './PostCard';
 import EditProfileModal from './EditProfileModal';
 import { ChevronLeft, Calendar, ExternalLink, Loader2, X } from 'lucide-react';
 import VerificationBadge from './VerificationBadge';
+import { getVerificationType } from '../lib/verified';
 
 const Profile = ({ currentUser }) => {
   const { username } = useParams();
@@ -28,6 +29,8 @@ const Profile = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState('posts');
   const [likedPosts, setLikedPosts] = useState([]);
   const [likedPostsLoading, setLikedPostsLoading] = useState(false);
+  const [showVerificationInfo, setShowVerificationInfo] = useState(false);
+  const [verificationInfoType, setVerificationInfoType] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -236,6 +239,11 @@ const Profile = ({ currentUser }) => {
     return posts;
   };
 
+  const handleVerificationClick = (type) => {
+    setVerificationInfoType(type);
+    setShowVerificationInfo(true);
+  };
+
   const displayedPosts = getDisplayedPosts();
 
   if (loading && !profile) return (
@@ -309,7 +317,7 @@ const Profile = ({ currentUser }) => {
           <div className="flex flex-col leading-tight">
             <h2 className="text-base font-bold text-[#e7e9ea] inline-flex items-center gap-1">
               {profile?.display_name || profile?.username}
-              <VerificationBadge user={profile} size="sm" />
+              <VerificationBadge user={profile} size="sm" onClick={() => handleVerificationClick(getVerificationType(profile))} />
             </h2>
             <span className="text-[12px] text-[#71767b] pb-px">{profile?.posts_count ?? posts.length} posts</span>
           </div>
@@ -336,7 +344,7 @@ const Profile = ({ currentUser }) => {
         <div className="mt-1">
           <h1 className="text-[22px] font-bold text-[#e7e9ea] leading-tight inline-flex items-center gap-1">
             {profile?.display_name || profile?.username}
-            <VerificationBadge user={profile} size="md" />
+            <VerificationBadge user={profile} size="md" onClick={() => handleVerificationClick(getVerificationType(profile))} />
           </h1>
           <p className="text-sm text-[#71767b] mt-0.5">@{profile?.username === 'zakariaelqannaa_0396c6cd' ? 'Lkwan_official' : profile?.username}</p>
         </div>
@@ -525,6 +533,35 @@ const Profile = ({ currentUser }) => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showVerificationInfo && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowVerificationInfo(false)}>
+          <div className="bg-black border border-[#2f3336] rounded-2xl w-full max-w-xs" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2f3336]">
+              <h3 className="font-bold text-sm text-[#e7e9ea]">Verification</h3>
+              <button type="button" onClick={() => setShowVerificationInfo(false)} className="p-1 rounded-full hover:bg-[#16181c] transition text-[#71767b]">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-4 py-5">
+              <p className="text-sm text-[#e7e9ea] leading-relaxed">
+                {verificationInfoType === 'artist'
+                  ? 'Post original art — paintings, music, graphic design, or video edits — at least 5 times per week.'
+                  : 'Post at least 2 posts per day.'}
+              </p>
+            </div>
+            <div className="px-4 pb-4">
+              <button
+                type="button"
+                onClick={() => setShowVerificationInfo(false)}
+                className="w-full py-2 rounded-full bg-[#e7e9ea] text-black text-sm font-bold hover:bg-[#d6d9db] transition-colors"
+              >
+                Got it
+              </button>
             </div>
           </div>
         </div>
