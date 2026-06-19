@@ -1,6 +1,6 @@
 export const VERIFIED_NAMES = new Set(['IKwan', 'ikwan', 'zakariaelqannaa_0396c6cd']);
 
-export const ARTIST_NAMES = new Set(['likan5995_da844a2a']);
+export const ARTIST_NAMES = new Set(['likan5995_da844a2a', 'darko_b22c4762']);
 
 export const isVerified = (user) => {
   if (!user) return false;
