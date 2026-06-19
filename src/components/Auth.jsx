@@ -6,11 +6,15 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
   const [form, setForm] = useState({ email: '', password: '', username: '' });
+  const [cooldown, setCooldown] = useState(0);
   const timerRef = useRef(null);
+  const attemptsRef = useRef(0);
+  const cooldownTimerRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
     };
   }, []);
 
@@ -22,13 +26,35 @@ const Auth = () => {
     timerRef.current = setTimeout(() => setMessage({ text: '', type: '' }), 5000);
   };
 
+  const startCooldown = () => {
+    setCooldown(30);
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownTimerRef.current);
+          attemptsRef.current = 0;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (cooldown > 0) return;
+
     setLoading(true);
     setMessage({ text: '', type: '' });
 
     if (form.password.length < 6) {
       showMessage('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (isSignUp && form.username && !/^[a-zA-Z0-9_]{3,30}$/.test(form.username)) {
+      showMessage('Username: 3-30 chars, letters, numbers, underscores only.');
       setLoading(false);
       return;
     }
@@ -59,6 +85,7 @@ const Auth = () => {
         
         if (data?.session) {
           setMessage({ text: 'Welcome! You are now logged in.', type: 'success' });
+          attemptsRef.current = 0;
         } else {
           setMessage({ text: 'Check email to verify, then sign in.', type: 'success' });
         }
@@ -72,7 +99,13 @@ const Auth = () => {
         if (error) {
           const msg = error.message;
           if (msg.includes('Invalid')) {
-            showMessage('Invalid email or password.');
+            attemptsRef.current++;
+            if (attemptsRef.current >= 5) {
+              startCooldown();
+              showMessage(`Too many attempts. Try again in 30s.`);
+            } else {
+              showMessage(`Invalid email or password. ${5 - attemptsRef.current} attempts remaining.`);
+            }
           } else if (msg.includes('Email not confirmed')) {
             showMessage('Please verify your email first.');
           } else {
@@ -80,6 +113,8 @@ const Auth = () => {
           }
         } else if (!data?.session) {
           showMessage('Please verify your email first.');
+        } else {
+          attemptsRef.current = 0;
         }
       }
     } catch (err) {
@@ -141,13 +176,12 @@ const Auth = () => {
             style={{ fontSize: '16px' }}
             required
           />
-          
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || cooldown > 0}
             className="w-full bg-[#1d9bf0] text-white font-bold py-3 rounded-full hover:bg-[#1a8cd8] transition-colors disabled:opacity-30"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+            {cooldown > 0 ? `Wait ${cooldown}s` : loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
         

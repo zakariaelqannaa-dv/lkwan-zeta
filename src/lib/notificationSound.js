@@ -1,6 +1,8 @@
 let ctx = null
 let pending = false
 let listening = false
+let lastPlayed = 0
+const COOLDOWN_MS = 1000
 
 function playSound() {
   if (!ctx || ctx.state !== 'running') return
@@ -62,6 +64,10 @@ function setupGestureListener() {
 }
 
 export function playNotificationSound() {
+  const now = Date.now()
+  if (now - lastPlayed < COOLDOWN_MS) return
+  lastPlayed = now
+
   try {
     if (navigator.vibrate) {
       navigator.vibrate(200)

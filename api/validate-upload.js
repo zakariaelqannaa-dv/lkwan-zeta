@@ -36,6 +36,8 @@ const MAX_SIZE = {
   video: 20 * 1024 * 1024,
   audio: 20 * 1024 * 1024,
 };
+const ABSOLUTE_MAX_SIZE = Math.max(...Object.values(MAX_SIZE));
+const ALLOWED_FOLDERS = new Set(['post_images', 'post_videos', 'messages', 'avatars', 'covers']);
 
 function detectFormat(buffer) {
   for (const [format, signatures] of Object.entries(MAGIC_BYTES)) {
@@ -105,6 +107,62 @@ function getMediaType(format) {
   return null;
 }
 
+function getBearerToken(req) {
+  const authorization = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization || '';
+  const [scheme, token] = authorization.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null;
+  return token;
+}
+
+function validateUploadPath(filePath, userId) {
+  if (typeof filePath !== 'string') {
+    return { error: 'Invalid path' };
+  }
+
+  if (
+    filePath.includes('\\') ||
+    filePath.includes('\0') ||
+    filePath.startsWith('/') ||
+    filePath.includes('..')
+  ) {
+    return { error: 'Invalid path' };
+  }
+
+  const parts = filePath.split('/');
+  if (parts.length !== 3) {
+    return { error: 'Invalid path' };
+  }
+
+  const [folder, ownerId, fileName] = parts;
+  if (!ALLOWED_FOLDERS.has(folder)) {
+    return { error: 'Upload folder is not allowed' };
+  }
+
+  if (ownerId !== userId) {
+    return { error: 'Upload path does not belong to the current user' };
+  }
+
+  if (!/^[A-Za-z0-9._-]+$/.test(fileName)) {
+    return { error: 'Invalid file name' };
+  }
+
+  return { folder };
+}
+
+function folderAllowsMediaType(folder, mediaType) {
+  if (folder === 'post_images' || folder === 'avatars' || folder === 'covers' || folder === 'messages') {
+    return mediaType === 'image';
+  }
+
+  if (folder === 'post_videos') {
+    return mediaType === 'video' || mediaType === 'audio';
+  }
+
+  return false;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -114,13 +172,38 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
+  const authToken = getBearerToken(req);
+  if (!authToken) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser(authToken);
+
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid session' });
+  }
+
   const filePath = req.query.path;
   if (!filePath) {
     return res.status(400).json({ error: 'Missing path parameter' });
   }
 
+  const pathValidation = validateUploadPath(filePath, user.id);
+  if (pathValidation.error) {
+    return res.status(403).json({ error: pathValidation.error });
+  }
+
   const chunks = [];
+  let totalBytes = 0;
   for await (const chunk of req) {
+    totalBytes += chunk.length;
+    if (totalBytes > ABSOLUTE_MAX_SIZE) {
+      return res.status(413).json({ error: 'File too large. Max 20MB.' });
+    }
     chunks.push(chunk);
   }
   const buffer = Buffer.concat(chunks);
@@ -137,13 +220,15 @@ export default async function handler(req, res) {
   const mediaType = getMediaType(format);
   const maxSize = MAX_SIZE[mediaType] || 20 * 1024 * 1024;
 
+  if (!folderAllowsMediaType(pathValidation.folder, mediaType)) {
+    return res.status(400).json({ error: 'File type is not allowed in this folder' });
+  }
+
   if (buffer.length > maxSize) {
     const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
     const limitMB = (maxSize / (1024 * 1024)).toFixed(0);
     return res.status(400).json({ error: `File too large (${sizeMB}MB). Max ${limitMB}MB.` });
   }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const contentType = ALLOWED_MIME_MAP[format] || 'application/octet-stream';
   const { error: uploadError } = await supabase.storage

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { Send, MessageSquare } from 'lucide-react';
+import { Send, MessageSquare, Globe, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import VerificationBadge from './VerificationBadge';
-import { isVerified } from '../lib/verified';
 
 const ChatPage = ({ user }) => {
   const [messages, setMessages] = useState([]);
@@ -135,7 +134,10 @@ const ChatPage = ({ user }) => {
       {/* ── Header ───────────────────────────────────────────── */}
       <header className="px-4 h-[53px] border-b border-[#2f3336] bg-black flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <MessageSquare size={18} className="text-[#1d9bf0]" />
+          <Link to="/messages" className="sm:hidden p-1.5 -ml-1.5 rounded-full hover:bg-[#16181c] transition text-[#e7e9ea]">
+            <ChevronLeft size={20} />
+          </Link>
+          <Globe size={18} className="text-[#1d9bf0]" />
           <div>
             <h2 className="text-base font-bold leading-none text-[#e7e9ea]">Public Chat</h2>
             <p className="text-[11px] text-[#71767b]">{onlineCount} online</p>
@@ -184,16 +186,6 @@ const ChatPage = ({ user }) => {
                   )}
 
                   <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[70%]`}>
-                    {/* Author name — only on first msg in group */}
-                    {!isMe && msg.isFirst && (
-                      <Link to={`/u/${profile?.username}`}>
-                        <span className="text-xs text-[#71767b] ml-1 mb-0.5 hover:text-[#1d9bf0] transition-colors inline-flex items-center gap-1">
-                          {profile?.display_name || profile?.username || 'Someone'}
-                          <VerificationBadge show={isVerified(profile)} size="sm" />
-                        </span>
-                      </Link>
-                    )}
-
                     {/* Bubble */}
                     <div
                       className={`px-3 py-2 text-sm leading-snug ${
@@ -202,6 +194,12 @@ const ChatPage = ({ user }) => {
                           : `bg-[#16181c] text-[#e7e9ea] ${msg.isFirst ? 'rounded-t-[18px]' : 'rounded-t-lg'} ${msg.isLast ? 'rounded-b-[18px] rounded-bl-md' : 'rounded-b-lg'}`
                       }`}
                     >
+                      {!isMe && msg.isFirst && (
+                        <Link to={`/u/${profile?.username}`} className="inline-flex items-center gap-[3px] mr-1 align-middle text-[10px] text-[#71767b] hover:text-[#1d9bf0] transition-colors">
+                          {profile?.display_name || profile?.username || 'Someone'}
+                          <VerificationBadge user={profile} size="sm" />
+                        </Link>
+                      )}
                       {msg.content}
                     </div>
 

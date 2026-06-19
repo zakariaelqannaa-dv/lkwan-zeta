@@ -9,6 +9,8 @@ const PostDetail = ({ currentUser }) => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
   useEffect(() => {
     const fetchPost = async () => {
       setLoading(true);

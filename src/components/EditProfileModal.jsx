@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { uploadWithValidation } from '../lib/uploadWithValidation';
 
 const EditProfileModal = ({ profile, onClose, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -19,7 +20,7 @@ const EditProfileModal = ({ profile, onClose, onUpdate }) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
     const filePath = `${folder}/${profile.id}/${fileName}`;
-    const { data, error } = await supabase.storage.from('media').upload(filePath, file);
+    const { error } = await uploadWithValidation(file, filePath);
     if (error) throw error;
     const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
     return urlData.publicUrl;
@@ -49,7 +50,10 @@ const EditProfileModal = ({ profile, onClose, onUpdate }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.display_name.trim()) return;
+    const name = formData.display_name.trim();
+    if (!name) return;
+    if (name.length > 50) return alert('Display name must be 50 characters or less.');
+    if (formData.bio.length > 160) return alert('Bio must be 160 characters or less.');
     setSaving(true);
 
     try {

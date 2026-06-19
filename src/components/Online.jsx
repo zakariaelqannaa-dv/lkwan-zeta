@@ -3,7 +3,6 @@ import { supabase } from '../supabaseClient';
 import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import VerificationBadge from './VerificationBadge';
-import { isVerified } from '../lib/verified';
 
 const Online = ({ currentUser }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -122,7 +121,7 @@ const Online = ({ currentUser }) => {
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#00ba7c] border-2 border-black rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-[#e7e9ea] truncate inline-flex items-center gap-1">{u.display_name || u.username}<VerificationBadge show={isVerified(u)} size="sm" /></h4>
+                <h4 className="text-sm font-bold text-[#e7e9ea] truncate inline-flex items-center gap-1">{u.display_name || u.username}<VerificationBadge user={u} size="sm" /></h4>
                 <p className="text-xs text-[#71767b]">@{u.username}</p>
               </div>
             </Link>

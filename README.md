@@ -38,7 +38,9 @@ Lkwan is a full-featured social media UI where users can share posts, follow peo
 - **Real-time Interactions** — Likes, comments, bookmarks, and follows update instantly via WebSocket.
 - **Direct Messaging** — Private one-on-one chats with read receipts and image sharing.
 - **Follow System** — Follow/unfollow users to curate your feed.
-- **Verified Profiles** — Badge-based verification system.
+- **Verified Profiles** — Dual-type verification: Standard (blue) and Artist (custom icon) badges.
+- **Verification Info** — Hover tooltip shows badge type; click navigates to user's profile.
+- **Admin Panel** — Manage categories and grant/revoke artist verification.
 - **Search** — Search posts by content, hashtags (`#tag`), and users (`@username`).
 - **Media Upload** — Client-side image compression before upload.
 - **Responsive Design** — Tailored layouts for mobile, tablet, and desktop.

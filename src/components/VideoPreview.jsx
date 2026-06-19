@@ -43,6 +43,38 @@ const VideoPreview = ({ file, onRemove, uploadProgress = 0, maxHeightClass = 'ma
     setObjectUrl(file);
   }, [file]);
 
+  useEffect(() => {
+    const el = mediaRef.current
+    if (!el) return
+
+    const handler = () => {
+      document.querySelectorAll('video, audio').forEach(other => {
+        if (other !== el && !other.paused) other.pause()
+      })
+      document.querySelectorAll('iframe[src*="youtube-nocookie.com/embed"]').forEach(iframe => {
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
+          '*'
+        )
+      })
+    }
+
+    el.addEventListener('play', handler)
+    el.addEventListener('playing', handler)
+
+    if (el.tagName === 'VIDEO') {
+      el.addEventListener('webkitbeginfullscreen', handler)
+    }
+
+    return () => {
+      el.removeEventListener('play', handler)
+      el.removeEventListener('playing', handler)
+      if (el.tagName === 'VIDEO') {
+        el.removeEventListener('webkitbeginfullscreen', handler)
+      }
+    }
+  }, [file])
+
   const handleLoadedMetadata = useCallback(() => {
     setStatus(STATUS.READY);
   }, []);

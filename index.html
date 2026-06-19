@@ -20,8 +20,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <script>(function(){function m(u){return u&&['sentry','o22381.ingest.us.sentry.io','ingest.sentry','sentry.io','add-ardi','spotifycdn','playready'].some(function(b){return u.indexOf(b)>-1})}var f=window.fetch;window.fetch=function(u){var t=typeof u=='string'?u:u&&u.url;if(m(t))return Promise.resolve(new Response(null,{status:200}));return f.apply(this,arguments)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){this._u=typeof u=='string'?u:u&&u.toString();return o.call(this,m,u)};var s=XMLHttpRequest.prototype.send;XMLHttpRequest.prototype.send=function(){if(m(this._u))return;return s.apply(this,arguments)};var b=navigator.sendBeacon;navigator.sendBeacon=function(u){if(m(u))return true;return b.call(navigator,u)}})()</script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google.com/recaptcha/; img-src 'self' https://*.supabase.co https://img.youtube.com https://*.spotifycdn.com https://i.scdn.co data: blob:; media-src 'self' https://*.supabase.co https://*.spotifycdn.com https://i.scdn.co blob:; manifest-src 'self'; frame-src 'self' https://www.youtube-nocookie.com https://open.spotify.com https://www.google.com/recaptcha/;">
+    <script>var P=['runtime.lasterror','could not establish connection','receiving end does not exist','sentry','ingest.sentry','o22381.ingest.us.sentry.io','sentry.javascript.nextjs','spotifycdn','playready','err_blocked','err_failed','err_blocked_by_client','failed to load resource','requestmediakeysystemaccess','setservercertificate','generaterequest','webgpu'];function isNoise(u){var s=String(u||'').toLowerCase();return P.some(function(p){return s.indexOf(p)>-1})}var ce=console.error,cw=console.warn,cl=console.log;console.error=function(){for(var i=0;i<arguments.length;i++){if(isNoise(arguments[i]))return}return ce.apply(console,arguments)};console.warn=function(){for(var i=0;i<arguments.length;i++){if(isNoise(arguments[i]))return}return cw.apply(console,arguments)};console.log=function(){for(var i=0;i<arguments.length;i++){if(isNoise(arguments[i]))return}return cl.apply(console,arguments)}</script>
     <style>
       #splash {
         position: fixed; inset: 0; z-index: 9999;
@@ -30,11 +30,11 @@
       }
       #splash-img {
         width: 80px; height: 80px;
-        opacity: 0.7;
+        opacity: 0.6;
         animation: splash-pulse 1.5s ease-in-out infinite;
       }
       @keyframes splash-pulse {
-        0%, 100% { opacity: 0.7; transform: scale(1); }
+        0%, 100% { opacity: 0.6; transform: scale(1); }
         50% { opacity: 1; transform: scale(1.05); }
       }
     </style>

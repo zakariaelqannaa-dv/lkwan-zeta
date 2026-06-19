@@ -1,15 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ExternalLink, Play, Music, Camera, Video, Facebook } from 'lucide-react';
+import { ExternalLink, Music, Camera, Video, Facebook } from 'lucide-react';
+import SpotifyEmbed from './SpotifyEmbed';
+import Embed from './Embed';
 
 const PLATFORMS = {
   youtube: {
     regex: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-    thumbnailChain: (id) => [
-      `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
-      `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
-      `https://img.youtube.com/vi/${id}/mqdefault.jpg`
-    ],
-    embedUrl: (id) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=0&rel=0`,
+    embedUrl: (id) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=0&rel=0&enablejsapi=1`,
     linkUrl: (id) => `https://www.youtube.com/watch?v=${id}`,
     color: '#FF0000',
     icon: Video,
@@ -17,7 +14,7 @@ const PLATFORMS = {
     label: 'YouTube'
   },
   spotify: {
-    regex: /(?:https?:\/\/)?(?:www\.)?(?:open\.spotify\.com\/|spotify\.com\/|spotify\.link\/)(track|album|playlist|episode|artist)\/([a-zA-Z0-9]+)/,
+    regex: /(?:https?:\/\/)?(?:www\.)?(?:open\.spotify\.com\/|spotify\.com\/|spotify\.link\/)(track|album|playlist|artist)\/([a-zA-Z0-9]+)/,
     embedUrl: (type, id) => `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`,
     linkUrl: (_, match) => match[0],
     color: '#1DB954',
@@ -67,20 +64,6 @@ const detectPlatform = (content) => {
   return null;
 };
 
-const fetchOgImage = async (url, signal) => {
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, { signal, headers: { 'Accept': 'text/html' } });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const ogMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i)
-      || html.match(/<meta\s+content="([^"]+)"\s+property="og:image"/i)
-      || html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
-    return ogMatch ? ogMatch[1] : null;
-  } catch {
-    return null;
-  }
-};
 
 /* ─────────────────────────── YouTube ─────────────────────────── */
 const YouTubeEmbed = ({ match }) => {
@@ -92,44 +75,13 @@ const YouTubeEmbed = ({ match }) => {
       style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}
     >
       <div className="relative w-full" style={{ paddingBottom: '56.25%', minWidth: 0 }}>
-          <iframe
-            src={PLATFORMS.youtube.embedUrl(videoId)}
-            title="YouTube video player"
-            className="absolute inset-0 w-full h-full"
-          style={{ width: '100%', height: '100%', border: 'none', borderRadius: 'inherit', overflow: 'hidden' }}
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          loading="lazy"
+        <Embed
+          src={PLATFORMS.youtube.embedUrl(videoId)}
+          title="YouTube video player"
+          className="absolute inset-0 w-full h-full"
+          style={{ height: '100%', borderRadius: 'inherit', overflow: 'hidden' }}
         />
       </div>
-    </div>
-  );
-};
-
-/* ─────────────────────────── Spotify ─────────────────────────── */
-const SpotifyEmbed = ({ match }) => {
-  const isTrack = match[1] === 'track';
-  const embedSrc = PLATFORMS.spotify.embedUrl(match[1], match[2]);
-
-  // Compact height for tracks on mobile, full for albums/playlists
-  const iframeHeight = isTrack ? 152 : 352;
-
-  return (
-    <div
-      className="mb-3 rounded-2xl overflow-hidden border border-[#2f3336] shadow-md"
-      style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}
-    >
-      <iframe
-        src={embedSrc}
-        style={{ width: '100%', maxWidth: '100%', minWidth: 0, display: 'block', border: 'none' }}
-        height={iframeHeight}
-        frameBorder="0"
-        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-        allowFullScreen
-        loading="lazy"
-        title="Spotify"
-      />
     </div>
   );
 };
@@ -192,51 +144,9 @@ const LinkFallbackCard = ({ platform, match, data }) => {
 };
 
 /* ─────────────────────────── X / Twitter ─────────────────────────── */
-const TwitterEmbed = ({ match }) => {
-  const url = match[0];
-  const [embedHtml, setEmbedHtml] = useState(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&format=json`)
-      .then(res => {
-        if (!res.ok) throw new Error('oEmbed failed');
-        return res.json();
-      })
-      .then(data => {
-        if (!cancelled) setEmbedHtml(data.html);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => { cancelled = true; };
-  }, [url]);
-
-  useEffect(() => {
-    if (!embedHtml) return;
-    if (!document.querySelector('script[src*="platform.twitter.com/widgets.js"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://platform.twitter.com/widgets.js';
-      script.async = true;
-      script.charset = 'utf-8';
-      script.onerror = () => {}; // suppress ad-blocker blocked load errors
-      document.body.appendChild(script);
-    }
-  }, [embedHtml]);
-
-  if (error) return <LinkFallbackCard platform="x" match={match} data={null} />;
-  if (!embedHtml) return <div className="mb-3 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse h-32" />;
-
-  return (
-    <div
-      className="mb-3 rounded-2xl overflow-hidden border border-[#2f3336] shadow-md"
-      style={{ width: '100%', maxWidth: '100%', minWidth: 0 }}
-    >
-      <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
-    </div>
-  );
-};
+const TwitterEmbed = ({ match }) => (
+  <LinkFallbackCard platform="x" match={match} data={null} />
+);
 
 /* ─────────────────────────── Main EmbedPreview ─────────────────────────── */
 const EmbedPreview = ({ content }) => {
@@ -257,15 +167,13 @@ const EmbedPreview = ({ content }) => {
     const { name, match } = detected;
     const url = match[0];
 
-    // YouTube and Spotify auto-load iframes — no oEmbed data needed
-    if (name === 'youtube' || name === 'spotify') {
+    if (name === 'youtube') {
       setEmbedData({});
       return;
     }
 
     const cacheKey = `embed_v2_${name}_${url}`;
 
-    // Check localStorage cache (24hr TTL)
     const cached = (() => {
       try {
         const item = localStorage.getItem(cacheKey);
@@ -298,41 +206,23 @@ const EmbedPreview = ({ content }) => {
     };
 
     if (oembedUrls[name]) {
-      const isSpotify = name === 'spotify';
-      const fetchUrl = isSpotify
-        ? `https://api.allorigins.win/raw?url=${encodeURIComponent(oembedUrls.spotify)}`
-        : oembedUrls[name];
-
-      fetch(fetchUrl, { signal: controller.signal })
+      fetch(oembedUrls[name], { signal: controller.signal })
         .then(res => {
           if (!res.ok) throw new Error('oEmbed failed');
-          return isSpotify ? res.text() : res.json();
+          return res.json();
         })
         .then(data => {
-          const parsed = isSpotify ? JSON.parse(data) : data;
-          if (parsed.thumbnail_url || parsed.title) {
+          if (data?.thumbnail_url || data?.title) {
             saveAndSet({
-              title: parsed.title || '',
-              author_name: parsed.author_name || '',
-              thumbnail_url: parsed.thumbnail_url || null,
+              title: data.title || '',
+              author_name: data.author_name || '',
+              thumbnail_url: data.thumbnail_url || null,
             });
           }
         })
-        .catch(async () => {
-          // oEmbed failed (CORS or proxy down) — show card with gradient fallback
-          if (['instagram', 'tiktok', 'facebook'].includes(name)) {
-            const ogImage = await fetchOgImage(url, controller.signal).catch(() => null);
-            saveAndSet({ thumbnail_url: ogImage || null, title: '', author_name: '' });
-          } else {
-            // For Spotify/YouTube — still mark as loaded so the gradient fallback renders immediately
-            saveAndSet({ thumbnail_url: null, title: '', author_name: '' });
-          }
+        .catch(() => {
+          saveAndSet({ thumbnail_url: null, title: '', author_name: '' });
         });
-    } else if (name === 'facebook') {
-      // Facebook has no oEmbed without app token — try OG directly
-      fetchOgImage(url, controller.signal)
-        .then(ogImage => saveAndSet({ thumbnail_url: ogImage || null, title: '', author_name: '' }))
-        .catch(() => saveAndSet({ thumbnail_url: null, title: '', author_name: '' }));
     }
 
     return () => controller.abort();

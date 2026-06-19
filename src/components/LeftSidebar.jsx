@@ -2,8 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Compass, User, MoreHorizontal, PenLine, MessageSquare, MessageCircle, Heart, Bookmark, LogOut, Flag, Shield, ShieldCheck } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { isVerified } from '../lib/verified';
-import verificationBadgeImg from '../assets/verification.png';
+import VerificationBadge from './VerificationBadge';
 import { getIsAdmin } from '../lib/admin';
 import { playNotificationSound } from '../lib/notificationSound';
 
@@ -182,7 +181,7 @@ const LeftSidebar = ({ user }) => {
               }
             </div>
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-sm font-bold text-[#e7e9ea] truncate leading-tight inline-flex items-center gap-0.5">{profile?.display_name || profile?.username || 'User'}{isVerified(profile) && <img src={verificationBadgeImg} alt="Verified" className="w-[34px] h-[34px] object-contain shrink-0 inline-block" />}</p>
+              <p className="text-sm font-bold text-[#e7e9ea] truncate leading-tight inline-flex items-center gap-0.5">{profile?.display_name || profile?.username || 'User'}<VerificationBadge user={profile} size="sm" /></p>
               <p className="text-[12px] text-[#71767b] truncate">@{profile?.username || 'user'}</p>
             </div>
           </Link>
@@ -198,7 +197,7 @@ const LeftSidebar = ({ user }) => {
         {showProfileMenu && (
           <div className="absolute bottom-full left-0 right-0 mb-2 bg-black border border-[#2f3336] rounded-xl shadow-xl animate-fade-in overflow-hidden">
             <div className="p-4 border-b border-[#2f3336]">
-              <p className="font-bold text-[#e7e9ea] truncate inline-flex items-center gap-0.5">{profile?.display_name || profile?.username}{isVerified(profile) && <img src={verificationBadgeImg} alt="Verified" className="w-[34px] h-[34px] object-contain shrink-0 inline-block" />}</p>
+              <p className="font-bold text-[#e7e9ea] truncate inline-flex items-center gap-0.5">{profile?.display_name || profile?.username}<VerificationBadge user={profile} size="sm" /></p>
               <p className="text-sm text-[#71767b] truncate">@{profile?.username}</p>
               <div className="flex gap-3 mt-2 text-sm text-[#71767b]">
                 <span><span className="font-bold text-[#e7e9ea]">{profile?.following_count || 0}</span> Following</span>

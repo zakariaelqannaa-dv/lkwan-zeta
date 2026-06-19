@@ -15,7 +15,7 @@ const AppShell = ({ children, user }) => {
 
       <div className="md:pl-[260px]">
         <div className="flex">
-          <main className={`flex-1 w-full ${isMessages ? 'h-screen-safe overflow-hidden flex flex-col' : 'max-w-[600px] lg:max-w-[700px] xl:max-w-[700px] 2xl:max-w-[760px] min-h-screen-safe pb-[60px] sm:pb-0'} border-x border-[#2f3336] relative bg-black overflow-x-hidden`}>
+          <main className={`flex-1 w-full ${isMessages ? 'h-screen-safe overflow-hidden flex flex-col' : 'sm:max-w-[500px] lg:max-w-[600px] xl:max-w-[620px] 2xl:max-w-[680px] min-h-screen-safe pb-[60px] sm:pb-0'} sm:border-x border-[#2f3336] relative bg-black overflow-x-hidden`}>
             {children}
           </main>
 

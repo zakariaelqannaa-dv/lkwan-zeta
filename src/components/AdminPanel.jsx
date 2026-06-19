@@ -11,9 +11,14 @@ import {
   ShieldCheck,
   Hash,
   Calendar,
-  AlertTriangle
+  AlertTriangle,
+  Search,
+  Loader2,
+  Music2
 } from 'lucide-react';
 import { getIsAdmin } from '../lib/admin';
+import { ARTIST_NAMES } from '../lib/verified';
+import VerificationBadge from './VerificationBadge';
 import {
   DndContext,
   closestCenter,
@@ -24,7 +29,6 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable
 } from '@dnd-kit/sortable';
@@ -141,6 +145,12 @@ const AdminPanel = ({ currentUser }) => {
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
   const newInputRef = useRef(null);
+
+  const [artistSearch, setArtistSearch] = useState('');
+  const [artistSearchResult, setArtistSearchResult] = useState(null);
+  const [artistSearching, setArtistSearching] = useState(false);
+  const [artistUpdating, setArtistUpdating] = useState(false);
+  const [artistMessage, setArtistMessage] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
@@ -396,6 +406,152 @@ const AdminPanel = ({ currentUser }) => {
               </SortableContext>
             </DndContext>
           )}
+        </section>
+
+        {/* Artist Verification */}
+        <section className="bg-[#16181c] rounded-xl border border-[#2f3336] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#2f3336]">
+            <h3 className="text-sm font-bold text-[#e7e9ea] flex items-center gap-2">
+              <Music2 size={14} className="text-[#1d9bf0]" />
+              Artist Verification
+            </h3>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={artistSearch}
+                onChange={(e) => setArtistSearch(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && artistSearch.trim()) {
+                    setArtistSearching(true);
+                    setArtistSearchResult(null);
+                    setArtistMessage('');
+                    const { data } = await supabase
+                      .from('profiles')
+                      .select('id, username, display_name, avatar_url')
+                      .ilike('username', `%${artistSearch.trim()}%`)
+                      .limit(5);
+                    if (data && data.length > 0) {
+                      setArtistSearchResult(data);
+                    } else {
+                      setArtistMessage('No users found.');
+                    }
+                    setArtistSearching(false);
+                  }
+                }}
+                placeholder="Search by username..."
+                className="flex-1 px-3 py-2 bg-black border border-[#2f3336] rounded-lg text-sm text-[#e7e9ea] placeholder-[#71767b] outline-none focus:border-[#1d9bf0] transition-colors"
+                style={{ fontSize: '16px' }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!artistSearch.trim()) return;
+                  setArtistSearching(true);
+                  setArtistSearchResult(null);
+                  setArtistMessage('');
+                  const { data } = await supabase
+                    .from('profiles')
+                    .select('id, username, display_name, avatar_url')
+                    .ilike('username', `%${artistSearch.trim()}%`)
+                    .limit(5);
+                  if (data && data.length > 0) {
+                    setArtistSearchResult(data);
+                  } else {
+                    setArtistMessage('No users found.');
+                  }
+                  setArtistSearching(false);
+                }}
+                className="px-3 py-2 bg-[#1d9bf0] text-white rounded-lg text-sm font-bold hover:bg-[#1a8cd8] transition-colors flex items-center gap-1.5 shrink-0"
+              >
+                <Search size={14} />
+                Search
+              </button>
+            </div>
+
+            {artistSearching && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 size={16} className="animate-spin text-[#71767b]" />
+              </div>
+            )}
+
+            {artistMessage && !artistSearching && (
+              <p className="text-sm text-[#71767b] text-center py-2">{artistMessage}</p>
+            )}
+
+            {artistSearchResult && !artistSearching && (
+              <div className="divide-y divide-[#2f3336] max-h-48 overflow-y-auto">
+                {artistSearchResult.map(u => (
+                  <div key={u.id} className="flex items-center justify-between gap-2 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#2f3336] overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold text-[#71767b]">
+                        {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" alt="" /> : (u.username?.charAt(0).toUpperCase() || '?')}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#e7e9ea] truncate inline-flex items-center gap-1">
+                          {u.display_name || u.username}
+                          <VerificationBadge user={u} size="sm" />
+                        </p>
+                        <p className="text-xs text-[#71767b] truncate">@{u.username}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {ARTIST_NAMES.has(u.username) ? (
+                        <button
+                          type="button"
+                          disabled={artistUpdating}
+                          onClick={async () => {
+                            setArtistUpdating(true);
+                            setArtistMessage('');
+                            const { error: err } = await supabase
+                              .from('profiles')
+                              .update({ verification_type: null })
+                              .eq('id', u.id);
+                            if (err) {
+                              setArtistMessage(`DB write not available. Remove from ARTIST_NAMES in verified.js to revoke.`);
+                            } else {
+                              setArtistMessage(`Revoked artist verification from @${u.username}`);
+                            }
+                            setArtistUpdating(false);
+                          }}
+                          className="px-2.5 py-1 rounded-full text-xs font-medium border border-[#f91880] text-[#f91880] hover:bg-[#f91880]/10 transition-colors disabled:opacity-30"
+                        >
+                          Revoke
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={artistUpdating}
+                          onClick={async () => {
+                            setArtistUpdating(true);
+                            setArtistMessage('');
+                            const { error: err } = await supabase
+                              .from('profiles')
+                              .update({ verification_type: 'artist' })
+                              .eq('id', u.id);
+                            if (err) {
+                              setArtistMessage(`DB write not available. Add to ARTIST_NAMES in verified.js to grant.`);
+                            } else {
+                              setArtistMessage(`Granted artist verification to @${u.username}`);
+                            }
+                            setArtistUpdating(false);
+                          }}
+                          className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#1d9bf0] text-white hover:bg-[#1a8cd8] transition-colors disabled:opacity-30"
+                        >
+                          Grant Artist
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {artistMessage && (
+              <p className="text-xs text-[#71767b] text-center">{artistMessage}</p>
+            )}
+          </div>
         </section>
 
         {/* Info */}

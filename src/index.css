@@ -52,35 +52,6 @@ html.pwa-standalone #root > div {
 /* ─── Component Classes ───────────────────────────────────── */
 @layer components {
 
-  /* Post content typography */
-  .prose-kwan {
-    @apply text-[#e7e9ea];
-  }
-  .prose-kwan p { @apply mb-2 last:mb-0; }
-  .prose-kwan a { @apply text-[#1d9bf0] hover:underline; }
-  .prose-kwan strong { @apply font-bold; }
-  .prose-kwan em { @apply italic; }
-  .prose-kwan code {
-    @apply bg-[#16181c] px-1.5 py-0.5 rounded text-sm font-mono text-[#e7e9ea];
-  }
-  .prose-kwan pre {
-    @apply bg-[#16181c] p-4 rounded-xl overflow-x-auto text-sm;
-  }
-  .prose-kwan blockquote {
-    @apply border-l-4 border-[#2f3336] pl-4 italic text-[#71767b];
-  }
-
-  /* Custom scrollbar (thin, styled) */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #2f3336 transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #2f3336;
-    border-radius: 9999px;
-  }
-
   /* Hide scrollbar completely */
   .scrollbar-none {
     scrollbar-width: none;
@@ -100,10 +71,6 @@ html.pwa-standalone #root > div {
     height: 100dvh;
   }
 
-  /* Mobile nav bottom padding */
-  .pb-mobile-nav {
-    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 8px);
-  }
 }
 
 /* ─── Loading Animation ──────────────────────────────────── */

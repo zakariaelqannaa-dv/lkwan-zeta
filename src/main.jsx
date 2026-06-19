@@ -5,15 +5,24 @@ import './index.css'
 const NOISE_PATTERNS = [
   'add-ardi', 'add_biar_support',
   'chrome-extension://', 'moz-extension://',
+  'runtime.lasterror', 'unchecked runtime.lasterror',
+  'could not establish connection',
+  'receiving end does not exist',
   'sentry', 'ingest.sentry',
   'o22381.ingest.us.sentry.io',
+  'sentry.javascript.nextjs',
   'spotifycdn', 'playready',
-  'ERR_BLOCKED', 'ERR_FAILED',
-  'com.microsoft.playready',
+  'err_blocked', 'err_failed', 'err_blocked_by_client',
+  'failed to load resource',
+  'com.microsoft.playready', 'requestmediakeysystemaccess',
+  'setservercertificate', 'generaterequest',
   'webgpu', 'navigator.gpu'
 ]
 
-const isNoise = (url) => NOISE_PATTERNS.some(p => url.includes(p))
+const isNoise = (value) => {
+  const text = String(value || '').toLowerCase()
+  return NOISE_PATTERNS.some(p => text.includes(p))
+}
 
 window.addEventListener('error', (e) => {
   const src = String(e.target?.src || e.filename || e.message || '')
@@ -25,7 +34,10 @@ window.addEventListener('error', (e) => {
 
 window.addEventListener('unhandledrejection', (e) => {
   const url = e.reason?.message || e.reason?.stack || ''
-  if (isNoise(url)) e.preventDefault()
+  if (isNoise(url)) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
 })
 
 const _fetch = window.fetch
@@ -57,7 +69,7 @@ window.XMLHttpRequest = PatchedXHR
 const _consoleError = console.error
 const _consoleWarn = console.warn
 const _consoleLog = console.log
-const isNoiseString = (s) => typeof s === 'string' && (NOISE_PATTERNS.some(p => s.includes(p)))
+const isNoiseString = (s) => isNoise(s)
 const patchConsole = (orig) => function(...args) {
   for (const a of args) {
     if (isNoiseString(a) || (a instanceof Error && isNoiseString(a.message)) || (a && isNoiseString(String(a)))) return
@@ -74,6 +86,20 @@ const isStandalone = window.navigator.standalone === true ||
 if (isStandalone) {
   document.documentElement.classList.add('pwa-standalone')
 }
+
+document.addEventListener('play', (e) => {
+  const el = e.target
+  if (el.tagName !== 'VIDEO' && el.tagName !== 'AUDIO') return
+  document.querySelectorAll('video, audio').forEach(other => {
+    if (other !== el && !other.paused) other.pause()
+  })
+  document.querySelectorAll('iframe[src*="youtube-nocookie.com/embed"]').forEach(iframe => {
+    iframe.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
+      '*'
+    )
+  })
+}, true)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

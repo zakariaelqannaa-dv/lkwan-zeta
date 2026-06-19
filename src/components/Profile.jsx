@@ -5,8 +5,6 @@ import PostCard from './PostCard';
 import EditProfileModal from './EditProfileModal';
 import { ChevronLeft, Calendar, ExternalLink, Loader2, X } from 'lucide-react';
 import VerificationBadge from './VerificationBadge';
-import { isVerified } from '../lib/verified';
-import { isOwner } from '../lib/admin';
 
 const Profile = ({ currentUser }) => {
   const { username } = useParams();
@@ -128,6 +126,17 @@ const Profile = ({ currentUser }) => {
   }, [profile?.id]);
 
   useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase.channel(`profile-posts-${profile.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts', filter: `user_id=eq.${profile.id}` }, async (payload) => {
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', payload.new.user_id).maybeSingle();
+        setPosts(prev => [{ ...payload.new, profiles: profileData, isNew: true }, ...prev]);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.id]);
+
+  useEffect(() => {
     if (activeTab !== 'posts' || !hasMore || loadingMore || loading) return;
 
     const observer = new IntersectionObserver(
@@ -177,6 +186,16 @@ const Profile = ({ currentUser }) => {
       await supabase.from('follows').insert([{ follower_id: currentUser.id, following_id: profile.id }]);
       setIsFollowing(true);
       setProfile(prev => ({ ...prev, followers_count: (prev.followers_count || 0) + 1 }));
+    }
+  };
+
+  const handleUnfollow = async (targetId) => {
+    if (!currentUser) return;
+    await supabase.from('follows').delete().match({ follower_id: currentUser.id, following_id: targetId });
+    setFollowList(prev => prev.filter(u => u.id !== targetId));
+    if (profile?.id === targetId) {
+      setIsFollowing(false);
+      setProfile(prev => ({ ...prev, followers_count: Math.max(0, (prev.followers_count || 0) - 1) }));
     }
   };
 
@@ -290,7 +309,7 @@ const Profile = ({ currentUser }) => {
           <div className="flex flex-col leading-tight">
             <h2 className="text-base font-bold text-[#e7e9ea] inline-flex items-center gap-1">
               {profile?.display_name || profile?.username}
-              <VerificationBadge show={isVerified(profile)} size="sm" />
+              <VerificationBadge user={profile} size="sm" />
             </h2>
             <span className="text-[12px] text-[#71767b] pb-px">{profile?.posts_count ?? posts.length} posts</span>
           </div>
@@ -317,9 +336,9 @@ const Profile = ({ currentUser }) => {
         <div className="mt-1">
           <h1 className="text-[22px] font-bold text-[#e7e9ea] leading-tight inline-flex items-center gap-1">
             {profile?.display_name || profile?.username}
-            <VerificationBadge show={isVerified(profile)} size="md" />
+            <VerificationBadge user={profile} size="md" />
           </h1>
-          <p className="text-sm text-[#71767b] mt-0.5">@{profile?.username}</p>
+          <p className="text-sm text-[#71767b] mt-0.5">@{profile?.username === 'zakariaelqannaa_0396c6cd' ? 'Lkwan_official' : profile?.username}</p>
         </div>
 
         {profile?.bio && (
@@ -472,27 +491,37 @@ const Profile = ({ currentUser }) => {
               ) : (
                 <div className="divide-y divide-[#2f3336]">
                   {followList.map(user => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => {
-                        setShowFollowModal(false);
-                        navigate(`/u/${user.username}`);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#080808] transition text-left"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-[#2f3336] overflow-hidden shrink-0 flex items-center justify-center text-sm font-bold text-[#71767b]">
-                        {user.avatar_url ? (
-                          <img src={user.avatar_url} className="w-full h-full object-cover" alt={user.username} />
-                        ) : (
-                          (user.username || '?').charAt(0).toUpperCase()
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-[#e7e9ea] truncate inline-flex items-center gap-1">{user.display_name || user.username}<VerificationBadge show={isVerified(user)} size="sm" /></p>
-                        <p className="text-xs text-[#71767b] truncate">@{user.username}</p>
-                      </div>
-                    </button>
+                    <div key={user.id} className="flex items-center justify-between gap-2 px-4 py-3 hover:bg-[#080808] transition">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowFollowModal(false);
+                          navigate(`/u/${user.username}`);
+                        }}
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-[#2f3336] overflow-hidden shrink-0 flex items-center justify-center text-sm font-bold text-[#71767b]">
+                          {user.avatar_url ? (
+                            <img src={user.avatar_url} className="w-full h-full object-cover" alt={user.username} />
+                          ) : (
+                            (user.username || '?').charAt(0).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-[#e7e9ea] truncate inline-flex items-center gap-1">{user.display_name || user.username}<VerificationBadge user={user} size="sm" /></p>
+                          <p className="text-xs text-[#71767b] truncate">@{user.username}</p>
+                        </div>
+                      </button>
+                      {followModalType === 'following' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleUnfollow(user.id); }}
+                          className="shrink-0 px-3 py-1 rounded-full text-xs font-medium border border-[#2f3336] text-[#e7e9ea] hover:border-[#f91880] hover:text-[#f91880] transition-colors"
+                        >
+                          Unfollow
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

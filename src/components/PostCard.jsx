@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { Heart, MessageCircle, Share, Send, Repeat, Edit, Trash2, ChevronLeft, ChevronRight, ShieldAlert, Bookmark } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,7 +10,6 @@ import EmbedPreview from './EmbedPreview';
 import VideoPreview from './VideoPreview';
 import MentionInput from './MentionInput';
 import VerificationBadge from './VerificationBadge';
-import { isVerified } from '../lib/verified';
 import { getIsAdmin } from '../lib/admin';
 
 const PostCard = ({ post, currentUser }) => {
@@ -282,10 +282,18 @@ const PostCard = ({ post, currentUser }) => {
     }
   };
 
+  const extractHashtags = (text) => {
+    const matches = text.match(/#(\w+)/g);
+    return matches ? [...new Set(matches)] : [];
+  };
+
   const renderContent = (text) => {
     let processed = text;
     const mentionRegex = /(^|\s)@(\w+)/g;
-    processed = processed.replace(mentionRegex, (match, prefix, username) => `${prefix}[@${username}](/u/${username})`);
+    processed = processed.replace(mentionRegex, (match, prefix, username) => {
+      if (username === 'Lkwan_official') return `${prefix}[@${username}](/u/zakariaelqannaa_0396c6cd)`;
+      return `${prefix}[@${username}](/u/${username})`;
+    });
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     processed = processed.replace(urlRegex, (url) => {
       if (isEmbedUrl(url)) return '';
@@ -299,8 +307,9 @@ const PostCard = ({ post, currentUser }) => {
     return parts.map((part, i) => {
       if (part.startsWith('@')) {
         const username = part.slice(1);
+        const linkUser = username === 'Lkwan_official' ? 'zakariaelqannaa_0396c6cd' : username;
         return (
-          <Link key={i} to={`/u/${username}`} className="text-amber-500 font-black hover:bg-amber-500/10 px-0.5 rounded-md transition-colors">
+          <Link key={i} to={`/u/${linkUser}`} className="text-amber-500 font-black hover:bg-amber-500/10 px-0.5 rounded-md transition-colors">
             {part}
           </Link>
         );
@@ -360,6 +369,7 @@ const PostCard = ({ post, currentUser }) => {
   };
 
   const profile = post.profiles || {};
+  const hashtags = extractHashtags(post.content || '');
 
   return (
     <article className="px-3 sm:px-4 py-2.5 border-b border-[#2f3336] hover:bg-[#080808] transition-colors duration-150 relative group/card bg-black">
@@ -372,7 +382,7 @@ const PostCard = ({ post, currentUser }) => {
 
       <div className="flex gap-3 relative z-10">
         <Link to={`/u/${profile.username}`} className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-[#2f3336] overflow-hidden flex items-center justify-center font-bold text-[#71767b] text-sm">
+          <div className="w-8 h-8 rounded-full bg-[#2f3336] overflow-hidden flex items-center justify-center font-bold text-[#71767b] text-xs">
             {profile.avatar_url ? (
               <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
             ) : (
@@ -382,9 +392,9 @@ const PostCard = ({ post, currentUser }) => {
         </Link>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1 text-[15px] mb-0">
+            <div className="flex items-center gap-1 text-[13px] mb-0">
               <Link to={`/u/${profile.username}`} className="font-bold text-[#e7e9ea] hover:underline truncate max-w-[120px] sm:max-w-[200px] inline-flex items-center gap-1">{profile.display_name || profile.username || 'Unknown'}</Link>
-              <VerificationBadge show={isVerified(profile)} size="sm" />
+              <VerificationBadge user={profile} size="sm" />
 
               {/* Post actions - author or admin */}
               {(isAuthor || isAdmin) && (
@@ -417,19 +427,16 @@ const PostCard = ({ post, currentUser }) => {
               )}
             </div>
 
-            <div className="flex items-center gap-1 text-[13px] text-[#71767b] leading-tight">
+            <div className="flex items-center gap-1 text-[11px] text-[#71767b] leading-tight">
               <span className="truncate min-w-0 flex-1">@{profile.username}</span>
               <span className="whitespace-nowrap ml-auto">{new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
               {post.is_edited && <span>(edited)</span>}
-              {post.category && (
-                <span className="shrink-0 truncate max-w-[100px] sm:max-w-[200px]">
-                  {post.category}
-                </span>
-              )}
+
             </div>
 
           <div className="text-[15px] leading-5 font-normal text-[#e7e9ea] mb-3 break-words overflow-wrap-anywhere whitespace-pre-wrap">
             <ReactMarkdown
+              rehypePlugins={[rehypeSanitize]}
               components={{
                 a: ({node, ...props}) => {
                   const isMention = props.children?.toString().startsWith('@');
@@ -448,6 +455,20 @@ const PostCard = ({ post, currentUser }) => {
           </div>
 
           {renderMedia()}
+
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {hashtags.map(tag => (
+                <Link
+                  key={tag}
+                  to={`/explore?search=${encodeURIComponent(tag)}`}
+                  className="text-xs text-[#71767b] bg-[#16181c] hover:bg-[#1d1f23] rounded-full px-2.5 py-0.5 transition-colors"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Embed preview — mobile-safe wrapper prevents overflow clipping */}
           <div className="w-full max-w-full min-w-0">
@@ -547,7 +568,7 @@ const PostCard = ({ post, currentUser }) => {
                     <div className="flex-1">
                       <div className="flex items-center gap-1 mb-0.5">
                         <Link to={`/u/${comment.profiles?.username}`} className="font-bold text-sm text-[#e7e9ea] hover:underline">{comment.profiles?.display_name || comment.profiles?.username}</Link>
-                        <VerificationBadge show={isVerified(comment.profiles)} size="sm" />
+                        <VerificationBadge user={comment.profiles} size="sm" />
                         <span className="text-[13px] text-[#71767b]">{new Date(comment.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                         {currentUser?.id === comment.user_id && (
                           <button

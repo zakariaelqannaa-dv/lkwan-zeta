@@ -1,19 +1,5 @@
 import { supabase } from '../supabaseClient';
 
-const MAGIC_BYTES = {
-  jpeg: [[0xFF, 0xD8, 0xFF]],
-  png: [[0x89, 0x50, 0x4E, 0x47]],
-  gif: [[0x47, 0x49, 0x46]],
-  webp: [[0x52, 0x49, 0x46, 0x46]],
-  mp4: [[0x00, 0x00, 0x00]],
-  webm: [[0x1A, 0x45, 0xDF, 0xA3]],
-  mp3: [[0x49, 0x44, 0x33]],
-  wav: [[0x52, 0x49, 0x46, 0x46]],
-  ogg: [[0x4F, 0x67, 0x67, 0x53]],
-  flac: [[0x66, 0x4C, 0x61, 0x43]],
-  opus: [[0x4F, 0x67, 0x67, 0x53]],
-};
-
 function detectFormatClient(buffer) {
   const view = new Uint8Array(buffer);
   if (view.length < 4) return null;
@@ -68,10 +54,24 @@ async function validateClientSide(file) {
   return format;
 }
 
-function uploadViaXhr(url, file, filePath, onProgress) {
+async function getAccessToken() {
+  const {
+    data: { session },
+    error
+  } = await supabase.auth.getSession();
+
+  if (error || !session?.access_token) {
+    throw new Error('Please sign in before uploading media.');
+  }
+
+  return session.access_token;
+}
+
+function uploadViaXhr(url, file, filePath, onProgress, accessToken) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${url}?path=${encodeURIComponent(filePath)}`, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
@@ -85,10 +85,14 @@ function uploadViaXhr(url, file, filePath, onProgress) {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(result);
         } else {
-          reject(new Error(result.error || `Upload failed (${xhr.status})`));
+          const error = new Error(result.error || `Upload failed (${xhr.status})`);
+          error.status = xhr.status;
+          reject(error);
         }
       } catch {
-        reject(new Error('Invalid server response'));
+        const error = new Error('Invalid server response');
+        error.status = xhr.status;
+        reject(error);
       }
     };
 
@@ -101,10 +105,21 @@ function uploadViaXhr(url, file, filePath, onProgress) {
 }
 
 export async function uploadWithValidation(file, filePath, onProgress) {
+  let accessToken;
   try {
-    const result = await uploadViaXhr('/api/validate-upload', file, filePath, onProgress);
+    accessToken = await getAccessToken();
+  } catch (error) {
+    return { error, data: null };
+  }
+
+  try {
+    const result = await uploadViaXhr('/api/validate-upload', file, filePath, onProgress, accessToken);
     return { error: null, data: { path: filePath } };
   } catch (apiError) {
+    if (apiError.status && apiError.status < 500 && apiError.status !== 404) {
+      return { error: apiError, data: null };
+    }
+
     const format = await validateClientSide(file);
     const contentTypeMap = {
       jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',

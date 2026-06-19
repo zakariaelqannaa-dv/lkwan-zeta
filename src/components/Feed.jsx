@@ -1,16 +1,18 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ComposeInline from './ComposeInline';
 import PostCard from './PostCard';
 import SkeletonCard from './SkeletonCard';
+import SearchIdentities from './SearchIdentities';
+import SearchKwans from './SearchKwans';
 import { Search, X, Loader2, Settings, LogOut, User } from 'lucide-react';
-import VerificationBadge from './VerificationBadge';
-import { isVerified } from '../lib/verified';
 import logoImg from '../assets/logo.png';
+import useSearch from '../hooks/useSearch';
 
 const Feed = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -19,22 +21,27 @@ const Feed = () => {
   const POSTS_PER_PAGE = 5;
   const [currentUser, setCurrentUser] = useState(null);
   const [searchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [users, setUsers] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [searchingPosts, setSearchingPosts] = useState(false);
-  const [searchPage, setSearchPage] = useState(0);
-  const [searchHasMore, setSearchHasMore] = useState(true);
-  const [searchLoadingMore, setSearchLoadingMore] = useState(false);
+  const {
+    searchQuery, setSearchQuery,
+    searchResults, searching, searchingPosts,
+    users,
+    searchHasMore, searchLoadingMore,
+    sentinelRef: searchSentinelRef,
+  } = useSearch();
   const [activeTab, setActiveTab] = useState('foryou');
   const [showSettings, setShowSettings] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(null);
   const sentinelRef = useRef(null);
-  const searchSentinelRef = useRef(null);
   const activeTabRef = useRef(activeTab);
   const [followingIds, setFollowingIds] = useState(new Set());
   const followingIdsRef = useRef(followingIds);
+  const addedPostIdsRef = useRef(new Set());
+
+  const handlePostCreated = useCallback(async (postData) => {
+    addedPostIdsRef.current.add(postData.id);
+    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', postData.user_id).maybeSingle();
+    setPosts(prev => [{ ...postData, profiles: profileData, isNew: true }, ...prev]);
+  }, []);
 
   const fetchFollowingIds = useCallback(async (userId) => {
     if (!userId) return;
@@ -92,6 +99,7 @@ const Feed = () => {
       const pChannel = supabase.channel('public:posts')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, async (payload) => {
           if (activeTabRef.current === 'following' && !followingIdsRef.current.has(payload.new.user_id)) return;
+          if (addedPostIdsRef.current.has(payload.new.id)) return;
           const { data: profileData } = await supabase.from('profiles').select('*').eq('id', payload.new.user_id).maybeSingle();
           if (isMounted) {
             setPosts(prev => [{ ...payload.new, profiles: profileData, isNew: true }, ...prev]);
@@ -114,7 +122,19 @@ const Feed = () => {
       channels.push(pChannel);
     };
 
-    init();
+    (async () => {
+      await init();
+
+      const newPost = location.state?.newPost;
+      if (newPost) {
+        addedPostIdsRef.current.add(newPost.id);
+        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', newPost.user_id).maybeSingle();
+        if (isMounted) {
+          setPosts(prev => [{ ...newPost, profiles: profileData, isNew: true }, ...prev]);
+        }
+        window.history.replaceState({}, '');
+      }
+    })();
 
     return () => {
       isMounted = false;
@@ -149,98 +169,6 @@ const Feed = () => {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, page, fetchPosts, searchQuery]);
 
-  const SEARCH_POSTS_PER_PAGE = 10;
-
-  const performSearch = async (queryToSearch, pageNum = 0) => {
-    if (queryToSearch.length < 2) {
-      setUsers([]);
-      setSearchResults([]);
-      return;
-    }
-
-    if (pageNum === 0) {
-      setSearching(true);
-      setSearchingPosts(true);
-    } else {
-      setSearchLoadingMore(true);
-    }
-
-    try {
-      const query = queryToSearch.toLowerCase().trim();
-      const isHashtag = query.startsWith('#');
-      const isUsername = query.startsWith('@');
-      const cleanQuery = query.replace(/^[#@]/, '');
-
-      if (pageNum === 0) {
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('*')
-          .or(`username.ilike.%${cleanQuery}%,display_name.ilike.%${cleanQuery}%`)
-          .limit(5);
-        setUsers(userData || []);
-      }
-
-      const from = pageNum * SEARCH_POSTS_PER_PAGE;
-      const to = from + SEARCH_POSTS_PER_PAGE - 1;
-
-      let postQuery = supabase
-        .from('posts')
-        .select('*, profiles!user_id(*)')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (isHashtag) {
-        postQuery = postQuery.ilike('category', `%${cleanQuery}%`);
-      } else if (isUsername) {
-        postQuery = postQuery.eq('profiles.username', cleanQuery);
-      } else {
-        postQuery = postQuery.or(`content.ilike.%${query}%,category.ilike.%${query}%`);
-      }
-
-      const { data: postData } = await postQuery;
-      if (postData) {
-        setSearchResults(prev => pageNum === 0 ? (postData || []) : [...prev, ...(postData || [])]);
-        setSearchHasMore((postData || []).length === SEARCH_POSTS_PER_PAGE);
-        setSearchPage(pageNum + 1);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
-    } finally {
-      if (pageNum === 0) {
-        setSearching(false);
-        setSearchingPosts(false);
-      } else {
-        setSearchLoadingMore(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    setUsers([]);
-    setSearchResults([]);
-    setSearchPage(0);
-    setSearchHasMore(true);
-    const timer = setTimeout(() => performSearch(searchQuery, 0), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (!searchHasMore || searchLoadingMore || searchQuery.length < 2) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          performSearch(searchQuery, searchPage);
-        }
-      },
-      { rootMargin: '300px' }
-    );
-
-    if (searchSentinelRef.current) observer.observe(searchSentinelRef.current);
-
-    return () => observer.disconnect();
-  }, [searchHasMore, searchLoadingMore, searchQuery, searchPage]);
-
   const handleDisconnect = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -255,7 +183,7 @@ const Feed = () => {
     <div className="flex flex-col min-h-screen w-full mx-auto bg-black">
       {/* Mobile header: centered K logo + settings */}
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-[#2f3336]">
-        <div className="sm:hidden flex items-center justify-between px-4 h-[48px]">
+        <div className="sm:hidden flex items-center justify-between px-4 h-[60px]">
           <Link
             to="/u/me"
             className="w-8 h-8 flex items-center justify-center text-[#71767b] hover:text-[#e7e9ea] hover:bg-[#16181c] rounded-full transition-colors overflow-hidden shrink-0"
@@ -362,135 +290,48 @@ const Feed = () => {
         </div>
       )}
 
-      {/* Mobile: Identities first (above compose) */}
+      {/* Search Identities - mobile */}
       {searchQuery.length >= 2 && (searching || users.length > 0) && (
         <div className="sm:hidden p-4 border-b border-[#2f3336] animate-slide-in">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#71767b] mb-3 px-2">Identities</h3>
-          {searching ? (
-            <div className="p-4 text-center text-sm text-[#71767b] font-normal">Searching...</div>
-          ) : users.length > 0 ? (
-            <div className="grid grid-cols-1 gap-2">
-              {users.map(u => (
-                <Link
-                  key={u.id}
-                  to={`/u/${u.username}`}
-                  className="flex items-center gap-3 p-3 bg-[#16181c] rounded-lg transition hover:bg-[#1a1c1e]"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[#2f3336] flex items-center justify-center font-bold text-[#71767b] overflow-hidden shrink-0">
-                    {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" alt={u?.username || 'Avatar'} /> : u.username.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-sm text-[#e7e9ea] truncate inline-flex items-center gap-1">{u.display_name || u.username}<VerificationBadge show={isVerified(u)} size="sm" /></p>
-                    <p className="text-xs text-[#71767b] font-normal">@{u.username}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : null}
+          <SearchIdentities users={users} searching={searching} />
         </div>
       )}
 
-      {/* Mobile Compose */}
-      {searchQuery.length < 2 && (
-        <div className="sm:hidden">
-          <ComposeInline user={currentUser} />
-        </div>
-      )}
-
-      {/* PC Compose */}
-      {searchQuery.length < 2 && (
-        <div className="hidden sm:block">
-          <ComposeInline user={currentUser} />
-        </div>
-      )}
+      {/* ComposeInline */}
+      {searchQuery.length < 2 && <ComposeInline user={currentUser} onPostCreated={handlePostCreated} />}
 
       <div>
-        {/* PC: Identities */}
+        {/* Desktop: Identities + Kwans */}
         {searchQuery.length >= 2 && (
           <div className="hidden sm:block animate-slide-in">
             {(searching || users.length > 0) && (
               <div className="p-4 border-b border-[#2f3336]">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#71767b] mb-3 px-2">Identities</h3>
-                {searching ? (
-                  <div className="p-4 text-center text-sm text-[#71767b] font-normal">Searching...</div>
-                ) : users.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-2">
-                    {users.map(u => (
-                      <Link
-                        key={u.id}
-                        to={`/u/${u.username}`}
-                        className="flex items-center gap-3 p-3 bg-[#16181c] rounded-lg transition hover:bg-[#1a1c1e]"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-[#2f3336] flex items-center justify-center font-bold text-[#71767b] overflow-hidden shrink-0">
-                          {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" alt={u?.username || 'Avatar'} /> : u.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm text-[#e7e9ea] truncate inline-flex items-center gap-1">{u.display_name || u.username}<VerificationBadge show={isVerified(u)} size="sm" /></p>
-                          <p className="text-xs text-[#71767b] font-normal">@{u.username}</p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
+                <SearchIdentities users={users} searching={searching} />
               </div>
             )}
-
-            {(searchingPosts || searchResults.length > 0) && (
-              <div className="p-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#71767b] mb-3 px-2">Kwans</h3>
-                {searchingPosts ? (
-                  <div className="p-4 text-center text-sm text-[#71767b] font-normal">Searching...</div>
-                ) : searchResults.length > 0 ? (
-                  <>
-                    {searchResults.map(post => (
-                      <div key={post.id} className="mb-1 last:mb-0">
-                        <PostCard post={post} currentUser={currentUser} />
-                      </div>
-                    ))}
-                    <div ref={searchSentinelRef} className="flex flex-col items-center gap-4 py-6 px-4">
-                      {searchLoadingMore ? (
-                        <div className="flex items-center gap-3 text-[#71767b]">
-                          <Loader2 size={16} className="animate-spin" />
-                          <span className="text-xs font-medium uppercase tracking-wider">Loading...</span>
-                        </div>
-                      ) : !searchHasMore && searchResults.length > 0 ? (
-                        <p className="text-xs text-[#71767b] font-medium">No more results</p>
-                      ) : null}
-                    </div>
-                  </>
-                ) : users.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-[#71767b] font-normal">No kwans or identities found.</div>
-                ) : null}
-              </div>
-            )}
+            <SearchKwans
+              searchResults={searchResults}
+              searchingPosts={searchingPosts}
+              searchLoadingMore={searchLoadingMore}
+              searchHasMore={searchHasMore}
+              sentinelRef={searchSentinelRef}
+              currentUser={currentUser}
+              showNoResults={users.length === 0}
+            />
           </div>
         )}
 
-        {/* Mobile: Kwans results */}
+        {/* Mobile: Kwans */}
         {searchQuery.length >= 2 && (searchingPosts || searchResults.length > 0) && (
           <div className="sm:hidden p-4 pb-32">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#71767b] mb-3 px-2">Kwans</h3>
-            {searchingPosts ? (
-              <div className="p-4 text-center text-sm text-[#71767b] font-normal">Searching...</div>
-            ) : searchResults.length > 0 ? (
-              <>
-                {searchResults.map(post => (
-                  <div key={post.id} className="mb-1 last:mb-0">
-                    <PostCard post={post} currentUser={currentUser} />
-                  </div>
-                ))}
-                <div ref={searchSentinelRef} className="flex flex-col items-center gap-4 py-6 px-4">
-                  {searchLoadingMore ? (
-                    <div className="flex items-center gap-3 text-[#71767b]">
-                      <Loader2 size={16} className="animate-spin" />
-                      <span className="text-xs font-medium uppercase tracking-wider">Loading...</span>
-                    </div>
-                  ) : !searchHasMore && searchResults.length > 0 ? (
-                    <p className="text-xs text-[#71767b] font-medium">No more results</p>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
+            <SearchKwans
+              searchResults={searchResults}
+              searchingPosts={searchingPosts}
+              searchLoadingMore={searchLoadingMore}
+              searchHasMore={searchHasMore}
+              sentinelRef={searchSentinelRef}
+              currentUser={currentUser}
+            />
           </div>
         )}
 
