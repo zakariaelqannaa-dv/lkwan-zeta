@@ -2,8 +2,8 @@ import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { getVerificationType } from '../lib/verified';
-import verificationBadge from '../assets/verification.png';
-import artistVerificationBadge from '../assets/artistVerification.png';
+import verificationBadge from '@/assets/verification.png';
+import artistVerificationBadge from '@/assets/artistVerification.png';
 
 const Tooltip = ({ text, targetRect }) => {
   if (!targetRect) return null;
