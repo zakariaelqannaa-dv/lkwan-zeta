@@ -17,7 +17,7 @@ import {
   Music2
 } from 'lucide-react';
 import { getIsAdmin } from '../lib/admin';
-import { ARTIST_NAMES } from '../lib/verified';
+import { getAllArtistNames, addArtistName, removeArtistName } from '../lib/verified';
 import VerificationBadge from './VerificationBadge';
 import {
   DndContext,
@@ -151,6 +151,8 @@ const AdminPanel = ({ currentUser }) => {
   const [artistSearching, setArtistSearching] = useState(false);
   const [artistUpdating, setArtistUpdating] = useState(false);
   const [artistMessage, setArtistMessage] = useState('');
+  const [artistVersion, setArtistVersion] = useState(0);
+  const currentArtists = getAllArtistNames();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
@@ -497,22 +499,16 @@ const AdminPanel = ({ currentUser }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {ARTIST_NAMES.has(u.username) ? (
+                      {currentArtists.has(u.username) ? (
                         <button
                           type="button"
                           disabled={artistUpdating}
-                          onClick={async () => {
+                          onClick={() => {
                             setArtistUpdating(true);
                             setArtistMessage('');
-                            const { error: err } = await supabase
-                              .from('profiles')
-                              .update({ verification_type: null })
-                              .eq('id', u.id);
-                            if (err) {
-                              setArtistMessage(`DB write not available. Remove from ARTIST_NAMES in verified.js to revoke.`);
-                            } else {
-                              setArtistMessage(`Revoked artist verification from @${u.username}`);
-                            }
+                            removeArtistName(u.username);
+                            setArtistMessage(`Revoked artist verification from @${u.username}`);
+                            setArtistVersion(v => v + 1);
                             setArtistUpdating(false);
                           }}
                           className="px-2.5 py-1 rounded-full text-xs font-medium border border-[#f91880] text-[#f91880] hover:bg-[#f91880]/10 transition-colors disabled:opacity-30"
@@ -523,18 +519,12 @@ const AdminPanel = ({ currentUser }) => {
                         <button
                           type="button"
                           disabled={artistUpdating}
-                          onClick={async () => {
+                          onClick={() => {
                             setArtistUpdating(true);
                             setArtistMessage('');
-                            const { error: err } = await supabase
-                              .from('profiles')
-                              .update({ verification_type: 'artist' })
-                              .eq('id', u.id);
-                            if (err) {
-                              setArtistMessage(`DB write not available. Add to ARTIST_NAMES in verified.js to grant.`);
-                            } else {
-                              setArtistMessage(`Granted artist verification to @${u.username}`);
-                            }
+                            addArtistName(u.username);
+                            setArtistMessage(`Granted artist verification to @${u.username}`);
+                            setArtistVersion(v => v + 1);
                             setArtistUpdating(false);
                           }}
                           className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#1d9bf0] text-white hover:bg-[#1a8cd8] transition-colors disabled:opacity-30"
